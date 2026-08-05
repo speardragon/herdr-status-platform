@@ -1,0 +1,61 @@
+<!doctype html>
+<!-- ray-brain 오늘 대시보드 — three.js 복셀 오피스 셸.
+     씬: office3d.mjs · 복셀 에셋: assets3d.mjs · 이전 뷰: /pixel(2D), /board(텍스트) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오늘 — ray-brain</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
+<style>
+  *{box-sizing:border-box} html,body{margin:0;height:100%}
+  body{font-family:-apple-system,system-ui,"Apple SD Gothic Neo",sans-serif;background:#efe7d3;overflow:hidden;display:flex;flex-direction:column}
+  #stage{flex:1;position:relative;min-height:0}
+  #stage canvas{display:block}
+  /* 좌상단 명판 오버레이 */
+  .nameplate{position:absolute;top:12px;left:12px;z-index:5;background:#7a5c3e;color:#ffe9c9;border-radius:6px;padding:6px 13px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25),2px 3px 6px rgba(60,45,20,.25);text-align:center}
+  .nameplate b{font-size:1.06rem;display:block;line-height:1.25}
+  .nameplate span{font-size:.68rem;opacity:.9;font-variant-numeric:tabular-nums}
+  .led{position:absolute;top:14px;left:118px;z-index:5;width:9px;height:9px;border-radius:50%;background:#b9b1a0;transition:background .3s}
+  .led.live{background:#2f9e44}
+  .led.pulse{animation:ledpop .7s ease-out}
+  @keyframes ledpop{0%{box-shadow:0 0 0 0 rgba(47,158,68,.6)}100%{box-shadow:0 0 0 11px rgba(47,158,68,0)}}
+  /* 상태바 */
+  .statusbar{background:#3a3226;color:#d8cdb8;font-size:.7rem;padding:5px 14px;display:flex;gap:14px;align-items:center;font-variant-numeric:tabular-nums}
+  .statusbar b{color:#fff} .statusbar .g{color:#69db7c} .statusbar .t{color:#ffa94d} .statusbar .r{color:#ff8787}
+  .statusbar .tick{margin-left:auto;color:#988c72;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:44%}
+  .statusbar a{color:#988c72;text-decoration:none;border-bottom:1px dotted}
+  /* 호버 카드 */
+  .hovercard{position:fixed;z-index:20;background:#fffef8;border:2px solid #3a3226;border-radius:8px;box-shadow:4px 4px 0 rgba(58,50,38,.3);padding:9px 12px;max-width:330px;font-size:.78rem;pointer-events:none;opacity:0;transition:opacity .12s;color:#3a3226}
+  .hovercard.show{opacity:1}
+  .hovercard .hc-title{font-weight:800;font-size:.84rem;margin-bottom:3px}
+  .hovercard .hc-row{color:#6d6350;line-height:1.55}
+  .hovercard .hc-row b{color:#3a3226}
+  .err{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#6d6350;font-size:.9rem;text-align:center;padding:30px;z-index:4}
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div class="nameplate"><b id="np-date">–</b><span id="np-clock">--:--:--</span></div>
+    <span class="led" id="led" title="herdr 연결"></span>
+  </div>
+  <div class="statusbar">
+    <span>완료 <b class="g" id="sb-done">0</b>/<b id="sb-total">0</b></span>
+    <span>에이전트 <b id="sb-agents">0</b> · 작업중 <b class="g" id="sb-working">0</b><span id="sb-blocked"></span></span>
+    <span id="sb-due"></span>
+    <span class="tick" id="sb-tick"></span>
+    <a href="/pixel" title="2D 픽셀 오피스">/pixel</a>
+    <a href="/board" title="밀도 높은 텍스트 보드">/board</a>
+  </div>
+  <div class="hovercard" id="hc"></div>
+  <script type="module">
+    import('./office3d.mjs').catch(err => {
+      const d = document.createElement('div');
+      d.className = 'err';
+      d.innerHTML = `3D 씬 로드 실패 — assets3d.mjs가 아직 없거나 오류가 있어요.<br>2D 뷰: <a href="/pixel">/pixel</a> · <a href="/board">/board</a><br><small>${String(err.message || err)}</small>`;
+      document.getElementById('stage').appendChild(d);
+      console.error(err);
+    });
+  </script>
+</body>
+</html>
