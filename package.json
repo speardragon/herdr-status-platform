@@ -1,0 +1,11 @@
+{
+  "name": "herdr-status-platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "bun run server/main.ts",
+    "mock": "bun run server/main.ts --mock",
+    "test": "bun test"
+  }
+}

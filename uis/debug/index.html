@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>디버그 뷰어 — herdr status</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔬</text></svg>">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0f1115; color: #d7dce2; font: 13px/1.5 ui-monospace, 'SF Mono', Menlo, monospace; }
+  header { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 12px 16px; border-bottom: 1px solid #232833; position: sticky; top: 0; background: #0f1115; }
+  header a { color: #6ea8fe; text-decoration: none; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #555; margin-right: 5px; }
+  .dot.up { background: #3fb950; }
+  .chip { padding: 1px 8px; border-radius: 10px; background: #1b2029; }
+  .chip b { font-weight: 700; }
+  main { display: grid; grid-template-columns: minmax(420px, 3fr) minmax(280px, 2fr); gap: 16px; padding: 16px; align-items: start; }
+  section { background: #151922; border: 1px solid #232833; border-radius: 8px; overflow: hidden; }
+  section h2 { margin: 0; padding: 8px 12px; font-size: 12px; color: #8b949e; border-bottom: 1px solid #232833; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #1d2330; vertical-align: top; }
+  th { color: #8b949e; font-weight: 600; font-size: 11px; }
+  tr.agent { cursor: pointer; }
+  tr.agent:hover { background: #1b2233; }
+  .st { padding: 0 7px; border-radius: 9px; font-size: 11px; color: #0f1115; font-weight: 700; }
+  .st.working { background: #3fb950; } .st.idle { background: #8b949e; }
+  .st.blocked { background: #f85149; } .st.done { background: #d29922; } .st.unknown { background: #6e40c9; color: #fff; }
+  .muted { color: #6d7681; }
+  .tree { padding: 8px 12px; }
+  .tree ul { margin: 2px 0 2px 16px; padding: 0; list-style: none; }
+  .tree > ul { margin-left: 0; }
+  #feed { max-height: 46vh; overflow-y: auto; }
+  #feed div { padding: 4px 12px; border-bottom: 1px solid #1d2330; }
+  #feed .t { color: #6d7681; margin-right: 8px; }
+  #feed .agent_status_changed { color: #7ee787; }
+  #feed .agent_appeared, #feed .pane_opened, #feed .workspace_opened { color: #6ea8fe; }
+  #feed .agent_left, #feed .pane_closed, #feed .workspace_closed { color: #f0883e; }
+  #feed .source_disconnected { color: #f85149; }
+  details { padding: 8px 12px; }
+  pre { margin: 8px 0 0; white-space: pre-wrap; word-break: break-all; font-size: 11px; color: #9da7b3; max-height: 50vh; overflow-y: auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <header>
+    <a href="/">← 갤러리</a>
+    <span><span class="dot" id="dot-ws"></span>ws</span>
+    <span><span class="dot" id="dot-src"></span><span id="src-label">source</span></span>
+    <span class="chip">seq <b id="seq">–</b></span>
+    <span class="chip">🟢 working <b id="c-working">0</b></span>
+    <span class="chip">😴 idle <b id="c-idle">0</b></span>
+    <span class="chip">🔴 blocked <b id="c-blocked">0</b></span>
+    <span class="chip">🏁 done <b id="c-done">0</b></span>
+    <span class="muted" id="herdr-ver"></span>
+  </header>
+  <main>
+    <div style="display: grid; gap: 16px;">
+      <section>
+        <h2>에이전트 (행 클릭 = herdr에서 pane 점프)</h2>
+        <table>
+          <thead><tr><th>pane</th><th>kind</th><th>name</th><th>status</th><th>title</th><th>since</th></tr></thead>
+          <tbody id="agents"></tbody>
+        </table>
+      </section>
+      <section>
+        <h2>워크스페이스 트리</h2>
+        <div class="tree" id="tree"></div>
+      </section>
+    </div>
+    <div style="display: grid; gap: 16px;">
+      <section>
+        <h2>이벤트 피드 (최신 위)</h2>
+        <div id="feed"></div>
+      </section>
+      <section>
+        <h2>raw</h2>
+        <details><summary class="muted">스냅샷 JSON 펼치기</summary><pre id="raw"></pre></details>
+      </section>
+    </div>
+  </main>
+
+<script type="module">
+import { connect } from '/sdk.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const rel = (iso) => {
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  return s < 60 ? `${s}초` : s < 3600 ? `${Math.floor(s / 60)}분` : `${Math.floor(s / 3600)}시간`;
+};
+
+const client = connect();
+const feedEl = $('feed');
+const MAX_FEED = 120;
+
+function describeEvent(e) {
+  switch (e.type) {
+    case 'agent_status_changed': return `${e.paneId} ${e.kind} ${e.from} → ${e.to} — ${e.title}`;
+    case 'agent_appeared': return `${e.paneId} ${e.kind}${e.name ? `(${e.name})` : ''} 등장 [${e.status}]`;
+    case 'agent_left': return `${e.paneId} ${e.kind}${e.name ? `(${e.name})` : ''} 퇴장`;
+    case 'agent_title_changed': return `${e.paneId} 작업: ${e.title}`;
+    case 'pane_opened': return `pane 열림 ${e.paneId}`;
+    case 'pane_closed': return `pane 닫힘 ${e.paneId}`;
+    case 'workspace_opened': return `워크스페이스 열림 ${e.label}`;
+    case 'workspace_closed': return `워크스페이스 닫힘 ${e.label}`;
+    case 'focus_changed': return `포커스 → ${e.focus.paneId ?? '없음'}`;
+    case 'source_connected': return 'herdr 연결됨';
+    case 'source_disconnected': return 'herdr 연결 끊김';
+    default: return e.type;
+  }
+}
+
+function pushFeed(e) {
+  const row = document.createElement('div');
+  row.className = e.type;
+  row.innerHTML = `<span class="t">${esc(e.ts.slice(11, 19))} #${e.seq}</span>${esc(describeEvent(e))}`;
+  feedEl.prepend(row);
+  while (feedEl.childElementCount > MAX_FEED) feedEl.lastElementChild.remove();
+}
+
+function render(snapshot) {
+  $('dot-src').classList.toggle('up', snapshot.connected);
+  $('src-label').textContent = snapshot.source;
+  $('seq').textContent = snapshot.seq;
+  $('herdr-ver').textContent = snapshot.herdr ? `herdr ${snapshot.herdr.version} (protocol ${snapshot.herdr.protocol})` : '';
+  for (const key of ['working', 'idle', 'blocked', 'done']) $(`c-${key}`).textContent = snapshot.stats[key];
+
+  $('agents').innerHTML = snapshot.agents.map((a) => `
+    <tr class="agent" data-pane="${esc(a.paneId)}">
+      <td>${esc(a.paneId)}${a.focused ? ' 👁' : ''}</td>
+      <td>${esc(a.kind)}</td>
+      <td>${esc(a.name ?? '')}</td>
+      <td><span class="st ${a.status}">${a.status}</span></td>
+      <td>${esc(a.title)}</td>
+      <td class="muted">${rel(a.statusSince)}</td>
+    </tr>`).join('');
+
+  $('tree').innerHTML = '<ul>' + snapshot.workspaces.map((w) => {
+    const tabs = snapshot.tabs.filter((t) => t.workspaceId === w.workspaceId);
+    return `<li>📁 <b>${esc(w.label)}</b> <span class="muted">${w.workspaceId}${w.focused ? ' · 👁' : ''}${w.worktree?.isLinkedWorktree ? ' · worktree' : ''}</span><ul>` +
+      tabs.map((t) => {
+        const panes = snapshot.panes.filter((p) => p.tabId === t.tabId);
+        return `<li>🗂 ${esc(t.label)} <span class="muted">${t.tabId}</span><ul>` +
+          panes.map((p) => `<li>${p.agentKind ? '🤖' : '▫️'} ${esc(p.paneId)} <span class="muted">${esc(p.agentKind ?? 'shell')}${p.agentStatus ? ` · ${p.agentStatus}` : ''}</span></li>`).join('') +
+          '</ul></li>';
+      }).join('') + '</ul></li>';
+  }).join('') + '</ul>';
+
+  $('raw').textContent = JSON.stringify(snapshot, null, 2);
+}
+
+client.onTransport((up) => $('dot-ws').classList.toggle('up', up));
+client.onUpdate(({ snapshot, events }) => {
+  render(snapshot);
+  for (const e of events) pushFeed(e);
+});
+
+// 첫 스냅샷의 링버퍼로 피드를 채운다 — 늦게 접속해도 최근 활동이 보인다.
+const initialFeed = () => {
+  const snap = client.snapshot;
+  if (!snap) return setTimeout(initialFeed, 100);
+  for (const e of snap.recentEvents) pushFeed(e);
+};
+initialFeed();
+
+document.getElementById('agents').addEventListener('click', async (ev) => {
+  const row = ev.target.closest('tr.agent');
+  if (!row) return;
+  const ok = await client.focusPane(row.dataset.pane);
+  row.style.outline = ok ? '1px solid #3fb950' : '1px solid #f85149';
+  setTimeout(() => { row.style.outline = ''; }, 600);
+});
+
+setInterval(() => {
+  if (client.snapshot) render(client.snapshot); // since 상대시간 갱신
+}, 5000);
+</script>
+</body>
+</html>
