@@ -1,0 +1,1083 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Nightline Control — herdr status</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚇</text></svg>">
+<style>
+  :root {
+    --ink: #eef8f7;
+    --muted: #78908f;
+    --faint: #3c5152;
+    --panel: rgba(9, 21, 24, .9);
+    --panel-solid: #091518;
+    --line: rgba(157, 202, 198, .14);
+    --working: #35f0ad;
+    --idle: #ffc857;
+    --blocked: #ff405c;
+    --done: #9c86ff;
+    --unknown: #78908f;
+    --route-a: #38d9ff;
+    --route-b: #ffcf4a;
+    --route-c: #a883ff;
+    --route-d: #45ec9c;
+    --route-e: #ff7d55;
+    --radius: 9px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    background:
+      radial-gradient(circle at 53% 42%, rgba(30, 111, 113, .16), transparent 34rem),
+      linear-gradient(145deg, #071114 0%, #03090b 100%);
+    color: var(--ink);
+    font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: .01em;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: .32;
+    background-image:
+      linear-gradient(rgba(116, 167, 164, .035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(116, 167, 164, .035) 1px, transparent 1px);
+    background-size: 24px 24px;
+    mask-image: linear-gradient(to bottom, black, transparent 88%);
+  }
+
+  button, a { font: inherit; }
+  button { color: inherit; }
+  button:focus-visible, a:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+  .topbar {
+    min-height: 82px;
+    display: grid;
+    grid-template-columns: minmax(250px, 1fr) auto minmax(250px, 1fr);
+    align-items: stretch;
+    border-bottom: 1px solid var(--line);
+    background: rgba(4, 12, 14, .86);
+    backdrop-filter: blur(18px);
+    position: relative;
+    z-index: 30;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 13px 22px;
+    color: var(--ink);
+    text-decoration: none;
+    min-width: 0;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(53, 240, 173, .4);
+    border-radius: 50%;
+    color: var(--working);
+    font: 800 16px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    box-shadow: inset 0 0 14px rgba(53, 240, 173, .12), 0 0 18px rgba(53, 240, 173, .08);
+  }
+
+  .eyebrow {
+    display: block;
+    color: var(--muted);
+    font: 700 9px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .19em;
+    text-transform: uppercase;
+  }
+
+  .brand-title {
+    display: block;
+    margin-top: 5px;
+    white-space: nowrap;
+    font: 780 17px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .06em;
+  }
+
+  .status-board {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(92px, 116px));
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+  }
+
+  .stat {
+    display: grid;
+    grid-template-columns: 15px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 12px 13px;
+    border: 0;
+    border-right: 1px solid var(--line);
+    background: transparent;
+    cursor: default;
+  }
+  .stat:last-child { border-right: 0; }
+  .stat-lamp { width: 10px; height: 10px; border-radius: 50%; background: currentColor; box-shadow: 0 0 13px currentColor; }
+  .stat.working { color: var(--working); }
+  .stat.idle { color: var(--idle); }
+  .stat.blocked { color: var(--blocked); background: rgba(255, 64, 92, .055); }
+  .stat.done { color: var(--done); }
+  .stat-label { color: currentColor; font: 720 9px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+  .stat-label small { display: block; margin-top: 3px; color: var(--muted); font-size: 8px; letter-spacing: .05em; }
+  .stat-value { font: 800 23px/1 ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+  .system-meta {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 16px;
+    padding: 13px 22px;
+    min-width: 0;
+  }
+  .connection { display: flex; align-items: center; gap: 9px; }
+  .connection-dot { width: 8px; height: 8px; border-radius: 50%; background: #405053; box-shadow: 0 0 0 4px rgba(64, 80, 83, .12); transition: .25s ease; }
+  .connection-dot.up { background: var(--working); box-shadow: 0 0 0 4px rgba(53, 240, 173, .12), 0 0 12px rgba(53, 240, 173, .42); }
+  .connection-copy { font: 700 9px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+  .connection-copy span { display: block; color: var(--muted); font-weight: 600; }
+  .clock { color: var(--ink); font: 650 17px/1 ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .seq { color: var(--muted); font: 700 9px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; text-align: right; }
+
+  .alert-strip {
+    display: none;
+    position: relative;
+    z-index: 28;
+    min-height: 34px;
+    align-items: center;
+    justify-content: center;
+    gap: 11px;
+    padding: 7px 18px;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(255, 64, 92, .58);
+    background: #4e0c18;
+    color: #fff;
+    text-align: center;
+    font: 800 10px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .alert-strip::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: .26;
+    background: repeating-linear-gradient(120deg, transparent 0 20px, rgba(255,255,255,.28) 20px 28px);
+    animation: hazard-slide 1.4s linear infinite;
+  }
+  .alert-strip > * { position: relative; }
+  .alert-symbol { display: inline-grid; place-items: center; width: 19px; height: 19px; background: #fff; color: #7c0c1f; border-radius: 3px; }
+  body.has-blocked .alert-strip { display: flex; }
+  body.has-blocked .stat.blocked { animation: stat-alarm 1.2s ease-in-out infinite; }
+
+  .shell {
+    height: calc(100dvh - 82px);
+    min-height: 610px;
+    display: grid;
+    grid-template-columns: 258px minmax(500px, 1fr) 314px;
+    transition: height .2s ease;
+  }
+  body.has-blocked .shell { height: calc(100dvh - 116px); }
+
+  .sidebar, .event-panel {
+    min-height: 0;
+    background: rgba(5, 14, 16, .72);
+  }
+  .sidebar { border-right: 1px solid var(--line); }
+  .event-panel { border-left: 1px solid var(--line); }
+
+  .panel-heading {
+    min-height: 51px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .panel-heading h2 { margin: 0; font: 750 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .14em; text-transform: uppercase; }
+  .panel-kicker { color: var(--muted); font: 650 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+
+  .routes { padding: 10px; }
+  .route-card {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 37px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 10px;
+    margin-bottom: 6px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: .18s ease;
+  }
+  .route-card:hover { background: rgba(122, 184, 181, .07); border-color: var(--line); }
+  .route-card.selected { background: rgba(122, 184, 181, .095); border-color: rgba(157, 202, 198, .25); }
+  .route-card.dimmed { opacity: .35; }
+  .route-code { width: 33px; height: 33px; display: grid; place-items: center; border: 3px solid var(--route); border-radius: 50%; color: #fff; font: 850 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; box-shadow: inset 0 0 0 2px #081114; }
+  .route-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 720; }
+  .route-sub { display: block; margin-top: 5px; color: var(--muted); font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em; }
+  .route-count { color: var(--route); font: 800 15px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .legend {
+    margin: 5px 16px 0;
+    padding-top: 17px;
+    border-top: 1px solid var(--line);
+  }
+  .legend-title { margin-bottom: 12px; color: var(--muted); font: 700 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .13em; }
+  .legend-row { display: grid; grid-template-columns: 13px 1fr auto; align-items: center; gap: 9px; margin: 9px 0; color: #b5c7c6; font-size: 10px; }
+  .legend-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--state); box-shadow: 0 0 8px color-mix(in srgb, var(--state) 60%, transparent); }
+  .legend-row b { color: var(--state); font: 800 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .05em; }
+
+  .network-summary {
+    margin: 22px 16px 0;
+    padding: 13px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: rgba(3, 9, 11, .5);
+  }
+  .network-summary .big { font: 800 27px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .network-summary .caption { margin-top: 6px; color: var(--muted); font: 650 8px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+  .capacity { height: 3px; margin-top: 12px; overflow: hidden; border-radius: 2px; background: rgba(255,255,255,.07); }
+  .capacity > span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--working), var(--route-a)); box-shadow: 0 0 7px var(--working); transition: width .4s ease; }
+
+  .map-panel { min-width: 0; min-height: 0; display: grid; grid-template-rows: 51px minmax(0, 1fr) 33px; position: relative; }
+  .map-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 0 18px; border-bottom: 1px solid var(--line); background: rgba(6, 16, 18, .5); }
+  .map-title { display: flex; align-items: baseline; gap: 10px; }
+  .map-title h1 { margin: 0; font: 780 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .11em; text-transform: uppercase; }
+  .map-title span { color: var(--muted); font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+  .map-tools { display: flex; gap: 7px; }
+  .tool-chip { padding: 5px 8px; border: 1px solid var(--line); border-radius: 3px; color: var(--muted); font: 650 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .07em; }
+  .tool-chip.live { color: var(--working); border-color: rgba(53,240,173,.28); background: rgba(53,240,173,.05); }
+
+  .map-stage {
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 12% 50%, rgba(80, 175, 166, .08), transparent 22%),
+      linear-gradient(rgba(9, 25, 28, .44), rgba(4, 12, 14, .44));
+  }
+  body.has-blocked .map-stage { box-shadow: inset 0 0 80px rgba(255, 64, 92, .07); }
+  #network-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+  #stations, #route-labels, #fx-layer { position: absolute; inset: 0; pointer-events: none; }
+  #stations { z-index: 5; }
+  #route-labels { z-index: 3; }
+  #fx-layer { z-index: 10; overflow: hidden; }
+
+  .map-route-label {
+    position: absolute;
+    left: 3.1%;
+    top: var(--y);
+    width: 60px;
+    transform: translateY(-50%);
+    text-align: center;
+  }
+  .map-route-label .code { width: 31px; height: 31px; margin: 0 auto; display: grid; place-items: center; border: 3px solid var(--route); border-radius: 50%; background: #071114; color: #fff; font: 850 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .map-route-label .name { width: 70px; margin: 7px -5px 0; overflow: hidden; color: var(--route); font: 700 7px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; text-overflow: ellipsis; }
+
+  .station {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    transform: translate(-50%, -50%);
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: opacity .2s ease, filter .2s ease;
+  }
+  .station.dimmed { opacity: .22; filter: saturate(.3); }
+  .station-core {
+    position: absolute;
+    inset: 5px;
+    display: grid;
+    place-items: center;
+    border: 4px solid #081315;
+    border-radius: 50%;
+    background: var(--state);
+    color: #061013;
+    font: 950 15px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    box-shadow: 0 0 0 2px var(--state), 0 0 18px color-mix(in srgb, var(--state) 45%, transparent);
+    transition: transform .2s ease;
+  }
+  .station:hover .station-core { transform: scale(1.14); }
+  .station.focused .station-core::after {
+    content: "";
+    position: absolute;
+    inset: -10px;
+    border: 1px dashed #fff;
+    border-radius: 50%;
+    animation: focus-spin 6s linear infinite;
+  }
+  .station.status-working .station-core { animation: working-beat 1.7s ease-in-out infinite; }
+  .station.status-idle .station-core { border-radius: 7px; box-shadow: 0 0 0 2px var(--idle), 0 0 12px rgba(255,200,87,.25); }
+  .station.status-done .station-core { border-radius: 5px 50% 50% 50%; transform: rotate(45deg); }
+  .station.status-done .station-icon { transform: rotate(-45deg); }
+  .station.status-blocked { z-index: 12; }
+  .station.status-blocked::before,
+  .station.status-blocked::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border: 2px solid var(--blocked);
+    border-radius: 50%;
+    opacity: .75;
+    animation: blocked-ring 1.35s ease-out infinite;
+  }
+  .station.status-blocked::after { animation-delay: .46s; }
+  .station.status-blocked .station-core {
+    border-color: #320710;
+    background: var(--blocked);
+    color: white;
+    box-shadow: 0 0 0 3px #ff8b9c, 0 0 28px rgba(255,64,92,.85);
+    animation: blocked-jolt .68s steps(2, end) infinite;
+  }
+  .station.status-unknown .station-core { background: #678083; color: #061013; box-shadow: 0 0 0 2px #678083; }
+
+  .station-card {
+    position: absolute;
+    top: 51px;
+    left: 50%;
+    width: 146px;
+    padding: 8px 9px 7px;
+    transform: translateX(-50%);
+    border: 1px solid rgba(137, 178, 175, .16);
+    border-radius: 5px;
+    background: rgba(5, 14, 16, .92);
+    box-shadow: 0 7px 20px rgba(0,0,0,.24);
+    text-align: left;
+  }
+  .station.dense .station-card { width: 118px; }
+  .station.card-above .station-card { top: auto; bottom: 51px; }
+  .station-card::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: calc(50% - 5px);
+    width: 9px;
+    height: 9px;
+    border-left: 1px solid rgba(137, 178, 175, .16);
+    border-top: 1px solid rgba(137, 178, 175, .16);
+    background: rgba(5, 14, 16, .98);
+    transform: rotate(45deg);
+  }
+  .station.card-above .station-card::before { top: auto; bottom: -6px; transform: rotate(225deg); }
+  .station.status-blocked .station-card { border-color: rgba(255,64,92,.57); background: rgba(37, 5, 11, .96); box-shadow: 0 8px 26px rgba(255,64,92,.17); }
+  .station.status-blocked .station-card::before { border-color: rgba(255,64,92,.57); background: rgba(37, 5, 11, .98); }
+  .station-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .station-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #f5fffe; font-size: 10px; font-weight: 780; }
+  .station-kind { flex: none; color: var(--state); font: 750 7px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .06em; text-transform: uppercase; }
+  .station-task { margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #839897; font-size: 8px; line-height: 1.3; }
+  .station-meta { display: flex; justify-content: space-between; gap: 6px; margin-top: 6px; color: #516967; font: 650 7px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .station-state { color: var(--state); font-weight: 850; }
+
+  .transition-burst {
+    --burst: var(--working);
+    position: absolute;
+    left: var(--left);
+    top: var(--top);
+    width: 0;
+    height: 0;
+  }
+  .transition-burst::before, .transition-burst::after {
+    content: "";
+    position: absolute;
+    left: -20px;
+    top: -20px;
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--burst);
+    border-radius: 50%;
+    animation: burst-wave 1.65s ease-out forwards;
+  }
+  .transition-burst::after { animation-delay: .18s; }
+  .transition-label {
+    position: absolute;
+    left: 25px;
+    top: -18px;
+    width: max-content;
+    max-width: 210px;
+    padding: 7px 10px;
+    border: 1px solid color-mix(in srgb, var(--burst) 70%, transparent);
+    border-radius: 3px;
+    background: #061012;
+    color: var(--burst);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--burst) 22%, transparent);
+    font: 800 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    animation: burst-label 1.65s ease forwards;
+  }
+  .transition-burst.to-blocked .transition-label { background: #3d0711; color: #fff; font-size: 9px; }
+  .transition-burst.near-right .transition-label { left: auto; right: 25px; }
+
+  .empty-map { position: absolute; inset: 0; z-index: 4; display: grid; place-items: center; text-align: center; color: var(--muted); }
+  .empty-map b { display: block; margin-bottom: 9px; color: var(--ink); font: 780 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; }
+
+  .map-footer { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 0 15px; border-top: 1px solid var(--line); color: var(--muted); background: rgba(4,12,14,.7); font: 650 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .07em; }
+  .map-footer strong { color: #a9bdbb; font-weight: 700; }
+
+  .event-panel { display: grid; grid-template-rows: 51px minmax(0,1fr) auto; }
+  .event-count { min-width: 22px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 3px; color: var(--muted); text-align: center; font: 700 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .events { min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-color: #2e4445 transparent; }
+  .event {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 0;
+    border-bottom: 1px solid rgba(157, 202, 198, .085);
+    background: transparent;
+    text-align: left;
+  }
+  button.event { cursor: pointer; }
+  button.event:hover { background: rgba(125, 178, 175, .055); }
+  .event-time { color: #526b6a; font: 650 8px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .event-time b { display: block; margin-top: 5px; color: var(--tone, var(--muted)); font-size: 7px; }
+  .event-title { color: #b8cac8; font-size: 9px; line-height: 1.5; }
+  .event-title strong { color: var(--tone, var(--ink)); font-weight: 780; }
+  .event-detail { margin-top: 5px; overflow: hidden; color: #607776; font: 600 8px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
+  .event.status-blocked { --tone: var(--blocked); background: rgba(255,64,92,.055); box-shadow: inset 3px 0 var(--blocked); }
+  .event.status-working { --tone: var(--working); }
+  .event.status-idle { --tone: var(--idle); }
+  .event.status-done { --tone: var(--done); }
+  .event.appeared { --tone: var(--route-a); }
+  .event.left { --tone: #ff8a61; }
+  .event.focus { --tone: #fff; }
+  .event.source-off { --tone: var(--blocked); }
+
+  .event-footer { padding: 11px 14px; border-top: 1px solid var(--line); color: #4e6564; font: 650 7px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .05em; }
+  .event-footer span { color: #849b99; }
+
+  .toast {
+    position: fixed;
+    z-index: 50;
+    left: 50%;
+    bottom: 26px;
+    min-width: 260px;
+    max-width: min(460px, calc(100vw - 30px));
+    padding: 11px 15px;
+    transform: translate(-50%, 18px);
+    border: 1px solid rgba(53,240,173,.38);
+    border-radius: 4px;
+    background: rgba(5, 17, 18, .96);
+    color: var(--working);
+    box-shadow: 0 14px 40px rgba(0,0,0,.5);
+    opacity: 0;
+    pointer-events: none;
+    text-align: center;
+    font: 750 9px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .05em;
+    transition: .2s ease;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.fail { color: var(--idle); border-color: rgba(255,200,87,.42); }
+
+  .offline-veil { display: none; position: absolute; inset: 51px 0 33px; z-index: 20; place-items: center; pointer-events: none; background: rgba(3,9,11,.54); backdrop-filter: grayscale(.8) blur(1px); }
+  .offline-card { padding: 15px 20px; border: 1px solid rgba(255,64,92,.5); background: #17070b; color: var(--blocked); font: 780 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-align: center; }
+  .offline-card span { display: block; margin-top: 4px; color: #9b7177; font-size: 8px; }
+  body.source-offline .offline-veil { display: grid; }
+
+  @keyframes hazard-slide { to { background-position: 56px 0; } }
+  @keyframes stat-alarm { 50% { background: rgba(255,64,92,.19); box-shadow: inset 0 0 20px rgba(255,64,92,.16); } }
+  @keyframes working-beat { 50% { box-shadow: 0 0 0 2px var(--working), 0 0 24px rgba(53,240,173,.7); } }
+  @keyframes blocked-ring { 0% { transform: scale(.72); opacity: .9; } 100% { transform: scale(1.75); opacity: 0; } }
+  @keyframes blocked-jolt { 0%,100% { transform: translate(0,0); } 35% { transform: translate(-1px,1px); } 70% { transform: translate(1px,-1px); } }
+  @keyframes focus-spin { to { transform: rotate(360deg); } }
+  @keyframes burst-wave { 0% { transform: scale(.3); opacity: 1; } 100% { transform: scale(4.4); opacity: 0; } }
+  @keyframes burst-label { 0% { transform: translateX(-8px); opacity: 0; } 15%,72% { transform: none; opacity: 1; } 100% { transform: translateX(8px); opacity: 0; } }
+
+  @media (max-width: 1180px) {
+    .topbar { grid-template-columns: 240px 1fr 190px; }
+    .status-board { grid-template-columns: repeat(4, 1fr); }
+    .stat { grid-template-columns: 10px 1fr; gap: 6px; padding: 10px 8px; }
+    .stat-value { grid-column: 2; font-size: 18px; }
+    .stat-label small { display: none; }
+    .system-meta { padding: 10px 14px; gap: 10px; }
+    .shell { grid-template-columns: 210px minmax(480px, 1fr) 270px; }
+    .route-card { grid-template-columns: 35px minmax(0,1fr); }
+    .route-count { display: none; }
+    .station-card { width: 132px; }
+  }
+
+  @media (max-width: 920px) {
+    body { overflow: auto; }
+    .topbar { grid-template-columns: 1fr auto; }
+    .brand { padding: 12px 15px; }
+    .system-meta { padding: 10px 15px; }
+    .status-board { grid-column: 1 / -1; grid-row: 2; border: 1px solid var(--line); border-width: 1px 0 0; }
+    .stat { min-height: 52px; grid-template-columns: 10px 1fr auto; }
+    .stat-value { grid-column: auto; }
+    .clock { display: none; }
+    .shell, body.has-blocked .shell { height: auto; min-height: 0; grid-template-columns: 1fr; }
+    .sidebar { border: 0; border-bottom: 1px solid var(--line); }
+    .routes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .route-card { margin: 0; }
+    .legend, .network-summary { display: none; }
+    .map-panel { height: 620px; }
+    .event-panel { height: 420px; border: 0; border-top: 1px solid var(--line); }
+  }
+
+  @media (max-width: 620px) {
+    .brand-mark { width: 32px; height: 32px; }
+    .brand-title { font-size: 13px; }
+    .system-meta .seq { display: none; }
+    .connection-copy { font-size: 8px; }
+    .status-board { overflow-x: auto; grid-template-columns: repeat(4, minmax(82px, 1fr)); }
+    .stat { grid-template-columns: 8px 1fr; min-width: 82px; }
+    .stat-value { grid-column: 2; font-size: 17px; }
+    .alert-strip { justify-content: flex-start; font-size: 8px; }
+    .routes { grid-template-columns: 1fr; padding: 7px 10px; }
+    .route-card { grid-template-columns: 33px 1fr auto; padding: 8px 10px; }
+    .route-count { display: block; }
+    .route-sub { margin-top: 2px; }
+    .map-panel { height: 650px; }
+    .map-toolbar { padding: 0 12px; }
+    .map-title span, .tool-chip:first-child { display: none; }
+    .map-route-label { left: 2%; }
+    .station-card { width: 116px; padding: 7px; }
+    .station.dense .station-card { width: 96px; }
+    .station-task { max-width: 100px; }
+    .transition-label { max-width: 145px; white-space: normal; line-height: 1.35; }
+    .map-footer span:last-child { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="관전 UI 갤러리로 돌아가기">
+      <span class="brand-mark">NL</span>
+      <span>
+        <span class="eyebrow">Metropolitan agent network</span>
+        <span class="brand-title">NIGHTLINE CONTROL</span>
+      </span>
+    </a>
+
+    <div class="status-board" aria-label="에이전트 상태 집계">
+      <div class="stat working"><i class="stat-lamp"></i><span class="stat-label">운행 중<small>WORKING</small></span><b class="stat-value" id="stat-working">0</b></div>
+      <div class="stat idle"><i class="stat-lamp"></i><span class="stat-label">대기선<small>IDLE</small></span><b class="stat-value" id="stat-idle">0</b></div>
+      <div class="stat blocked"><i class="stat-lamp"></i><span class="stat-label">운행 장애<small>BLOCKED</small></span><b class="stat-value" id="stat-blocked">0</b></div>
+      <div class="stat done"><i class="stat-lamp"></i><span class="stat-label">종착 완료<small>DONE</small></span><b class="stat-value" id="stat-done">0</b></div>
+    </div>
+
+    <div class="system-meta">
+      <div class="connection">
+        <i class="connection-dot" id="transport-dot"></i>
+        <div class="connection-copy">SIGNAL LINK<span id="connection-label">연결 대기</span></div>
+      </div>
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="seq">FRAME<br><span id="seq">0000</span></div>
+    </div>
+  </header>
+
+  <div class="alert-strip" role="status" aria-live="polite">
+    <span class="alert-symbol">!</span>
+    <span id="alert-copy">운행 장애 감지</span>
+    <span class="alert-symbol">!</span>
+  </div>
+
+  <main class="shell">
+    <aside class="sidebar" aria-label="노선 관제">
+      <div class="panel-heading"><h2>노선 관제</h2><span class="panel-kicker">LINES</span></div>
+      <div class="routes" id="routes"></div>
+      <div class="legend" aria-label="상태 범례">
+        <div class="legend-title">SIGNAL LEGEND</div>
+        <div class="legend-row" style="--state:var(--working)"><i class="legend-dot"></i><span>운행 중 · 작업 진행</span><b>▶</b></div>
+        <div class="legend-row" style="--state:var(--idle)"><i class="legend-dot"></i><span>대기선 · 호출 대기</span><b>Ⅱ</b></div>
+        <div class="legend-row" style="--state:var(--blocked)"><i class="legend-dot"></i><span>운행 장애 · 개입 필요</span><b>!</b></div>
+        <div class="legend-row" style="--state:var(--done)"><i class="legend-dot"></i><span>종착 완료 · 임무 완료</span><b>✓</b></div>
+      </div>
+      <div class="network-summary">
+        <div class="big"><span id="total-agents">0</span><small style="font-size:10px;color:var(--muted)"> / 09</small></div>
+        <div class="caption">ACTIVE STATIONS<br>현재 관제 중인 에이전트 역</div>
+        <div class="capacity"><span id="capacity-bar"></span></div>
+      </div>
+    </aside>
+
+    <section class="map-panel" aria-label="에이전트 메트로 노선도">
+      <div class="map-toolbar">
+        <div class="map-title"><h1>광역 에이전트 노선망</h1><span>station click → pane focus</span></div>
+        <div class="map-tools"><span class="tool-chip">AUTO DISPATCH</span><span class="tool-chip live" id="source-chip">NO DATA</span></div>
+      </div>
+      <div class="map-stage" id="map-stage">
+        <canvas id="network-canvas" aria-hidden="true"></canvas>
+        <div id="route-labels" aria-hidden="true"></div>
+        <div id="stations"></div>
+        <div id="fx-layer" aria-hidden="true"></div>
+      </div>
+      <div class="map-footer">
+        <span>운행 기준시 <strong id="snapshot-time">--:--:--</strong></span>
+        <span>역을 선택하면 herdr pane으로 관제 화면이 이동합니다</span>
+      </div>
+      <div class="offline-veil"><div class="offline-card">SIGNAL SOURCE OFFLINE<span>마지막 수신 상태를 유지합니다</span></div></div>
+    </section>
+
+    <aside class="event-panel" aria-label="운행 기록">
+      <div class="panel-heading"><h2>운행 기록</h2><span class="event-count" id="event-count">0</span></div>
+      <div class="events" id="events"></div>
+      <div class="event-footer">RECENT EVENT RING · <span>최신 신호부터 표시</span><br>pane 관련 기록을 누르면 해당 역으로 이동합니다</div>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+import { connect } from '/sdk.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[char]));
+
+const STATUS = {
+  working: { label: '운행 중', icon: '▶', color: '#35f0ad' },
+  idle: { label: '대기선', icon: 'Ⅱ', color: '#ffc857' },
+  blocked: { label: '운행 장애', icon: '!', color: '#ff405c' },
+  done: { label: '종착 완료', icon: '✓', color: '#9c86ff' },
+  unknown: { label: '신호 미상', icon: '?', color: '#78908f' },
+};
+const ROUTE_COLORS = ['#38d9ff', '#ffcf4a', '#a883ff', '#45ec9c', '#ff7d55'];
+const ROUTE_CODES = ['N1', 'C2', 'V3', 'G4', 'O5'];
+const MAX_EVENTS = 60;
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const state = {
+  snapshot: null,
+  transportUp: false,
+  selectedWorkspace: null,
+  events: new Map(),
+  geometry: [],
+  transitions: [],
+};
+
+const client = connect();
+let toastTimer = 0;
+
+function showToast(message, fail = false) {
+  const toast = $('toast');
+  toast.textContent = message;
+  toast.classList.toggle('fail', fail);
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+function routeMeta(index) {
+  return { code: ROUTE_CODES[index % ROUTE_CODES.length], color: ROUTE_COLORS[index % ROUTE_COLORS.length] };
+}
+
+function shortName(agent) {
+  return agent.name || `${agent.kind}-${agent.paneId.split(':').pop()}`;
+}
+
+function timeOnly(iso) {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? '--:--:--' : date.toLocaleTimeString('ko-KR', { hour12: false });
+}
+
+function elapsed(iso) {
+  const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (seconds < 60) return `${seconds}초`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}분`;
+  return `${Math.floor(seconds / 3600)}시간`;
+}
+
+function stationPositions(workspaces, agents) {
+  const compact = innerWidth < 620;
+  const top = workspaces.length <= 2 ? 26 : 18;
+  const bottom = workspaces.length <= 2 ? 74 : 82;
+  const yFor = (index) => workspaces.length === 1 ? 50 : top + (bottom - top) * index / (workspaces.length - 1);
+  const result = new Map();
+
+  workspaces.forEach((workspace, routeIndex) => {
+    const members = agents.filter((agent) => agent.workspaceId === workspace.workspaceId);
+    const startX = compact ? 35 : 29;
+    const endX = compact ? 79 : 84;
+    members.forEach((agent, memberIndex) => {
+      const x = members.length === 1 ? 58 : startX + (endX - startX) * memberIndex / (members.length - 1);
+      result.set(agent.paneId, { x, y: yFor(routeIndex), routeIndex, memberIndex, memberCount: members.length });
+    });
+  });
+  return { positions: result, yFor };
+}
+
+function renderHeader(snapshot) {
+  for (const status of ['working', 'idle', 'blocked', 'done']) {
+    $(`stat-${status}`).textContent = snapshot.stats[status] ?? 0;
+  }
+  $('total-agents').textContent = snapshot.stats.total;
+  $('capacity-bar').style.width = `${Math.min(100, snapshot.stats.total / 9 * 100)}%`;
+  $('seq').textContent = String(snapshot.seq).padStart(4, '0');
+  $('snapshot-time').textContent = timeOnly(snapshot.ts);
+  $('source-chip').textContent = `${snapshot.source.toUpperCase()} · ${snapshot.connected ? 'LIVE' : 'HOLD'}`;
+  $('source-chip').classList.toggle('live', snapshot.connected);
+  document.body.classList.toggle('source-offline', !snapshot.connected);
+  document.body.classList.toggle('has-blocked', snapshot.stats.blocked > 0);
+
+  const blocked = snapshot.agents.filter((agent) => agent.status === 'blocked');
+  $('alert-copy').textContent = blocked.length
+    ? `${blocked.length}개 역 운행 장애 · ${blocked.map(shortName).join(' · ')} · 즉시 개입 필요`
+    : '모든 노선 정상 운행';
+}
+
+function renderRoutes(snapshot) {
+  $('routes').innerHTML = snapshot.workspaces.map((workspace, index) => {
+    const meta = routeMeta(index);
+    const members = snapshot.agents.filter((agent) => agent.workspaceId === workspace.workspaceId);
+    const active = state.selectedWorkspace === workspace.workspaceId;
+    const dimmed = state.selectedWorkspace && !active;
+    return `<button class="route-card${active ? ' selected' : ''}${dimmed ? ' dimmed' : ''}" data-workspace="${esc(workspace.workspaceId)}" style="--route:${meta.color}" aria-pressed="${active}">
+      <span class="route-code">${meta.code}</span>
+      <span class="route-name">${esc(workspace.label)}<small class="route-sub">${workspace.tabCount}개 구간 · ${workspace.paneCount}개 pane</small></span>
+      <b class="route-count">${members.length}</b>
+    </button>`;
+  }).join('');
+}
+
+function renderMap(snapshot) {
+  const workspaces = snapshot.workspaces.filter((workspace) =>
+    snapshot.agents.some((agent) => agent.workspaceId === workspace.workspaceId));
+  const { positions, yFor } = stationPositions(workspaces, snapshot.agents);
+
+  $('route-labels').innerHTML = workspaces.map((workspace, index) => {
+    const meta = routeMeta(index);
+    return `<div class="map-route-label" style="--y:${yFor(index)}%;--route:${meta.color}">
+      <div class="code">${meta.code}</div><div class="name">${esc(workspace.label)}</div>
+    </div>`;
+  }).join('');
+
+  if (snapshot.agents.length === 0) {
+    $('stations').innerHTML = '<div class="empty-map"><div><b>NO ACTIVE STATIONS</b>에이전트가 노선에 진입하면 자동으로 표시됩니다</div></div>';
+    requestAnimationFrame(layoutGeometry);
+    return;
+  }
+
+  $('stations').innerHTML = snapshot.agents.map((agent) => {
+    const pos = positions.get(agent.paneId) || { x: 50, y: 50, routeIndex: 0 };
+    const status = STATUS[agent.status] || STATUS.unknown;
+    const dimmed = state.selectedWorkspace && state.selectedWorkspace !== agent.workspaceId;
+    const cardAbove = pos.y > 62 || (pos.y > 32 && pos.memberIndex % 2 === 1);
+    const dense = pos.memberCount > 4;
+    return `<button class="station status-${esc(agent.status)}${agent.focused ? ' focused' : ''}${dimmed ? ' dimmed' : ''}${cardAbove ? ' card-above' : ''}${dense ? ' dense' : ''}"
+      style="--x:${pos.x}%;--y:${pos.y}%;--state:${status.color}"
+      data-pane="${esc(agent.paneId)}" data-workspace="${esc(agent.workspaceId)}"
+      aria-label="${esc(shortName(agent))}, ${status.label}, 클릭하여 pane 이동">
+      <span class="station-core"><span class="station-icon">${status.icon}</span></span>
+      <span class="station-card">
+        <span class="station-head"><b class="station-name">${esc(shortName(agent))}</b><span class="station-kind">${esc(agent.kind)}</span></span>
+        <span class="station-task">${esc(agent.title || '작업 정보 없음')}</span>
+        <span class="station-meta"><span class="station-state">${status.label}</span><span>${elapsed(agent.statusSince)} · ${esc(agent.paneId)}</span></span>
+      </span>
+    </button>`;
+  }).join('');
+
+  requestAnimationFrame(layoutGeometry);
+}
+
+function eventCopy(event) {
+  const name = event.name || event.kind || event.paneId || 'SYSTEM';
+  switch (event.type) {
+    case 'agent_status_changed':
+      return { title: `${name} 신호 전환`, detail: `${STATUS[event.from]?.label || event.from} → ${STATUS[event.to]?.label || event.to} · ${event.title}` };
+    case 'agent_appeared':
+      return { title: `${name} 노선 진입`, detail: `${event.paneId} · ${STATUS[event.status]?.label || event.status}` };
+    case 'agent_left':
+      return { title: `${name} 운행 종료`, detail: `${event.paneId} 노선에서 이탈` };
+    case 'agent_title_changed':
+      return { title: `${name} 행선 갱신`, detail: event.title };
+    case 'focus_changed':
+      return { title: '관제 시점 이동', detail: event.focus.paneId ? `${event.focus.paneId} 역을 주시 중` : '선택된 역 없음' };
+    case 'pane_opened': return { title: '신규 승강장 개방', detail: event.paneId };
+    case 'pane_closed': return { title: '승강장 폐쇄', detail: event.paneId };
+    case 'workspace_opened': return { title: '신규 노선 개통', detail: event.label };
+    case 'workspace_closed': return { title: '노선 운행 종료', detail: event.label };
+    case 'source_connected': return { title: '중앙 신호 연결', detail: '실시간 관제 데이터 수신 시작' };
+    case 'source_disconnected': return { title: '중앙 신호 단절', detail: '마지막 수신 상태로 전환' };
+    default: return { title: event.type, detail: '' };
+  }
+}
+
+function eventClass(event) {
+  if (event.type === 'agent_status_changed') return `status-${event.to}`;
+  if (event.type === 'agent_appeared' || event.type === 'pane_opened' || event.type === 'workspace_opened') return 'appeared';
+  if (event.type === 'agent_left' || event.type === 'pane_closed' || event.type === 'workspace_closed') return 'left';
+  if (event.type === 'focus_changed') return 'focus';
+  if (event.type === 'source_disconnected') return 'source-off';
+  return '';
+}
+
+function addEvents(events) {
+  for (const event of events) {
+    const target = event.paneId || event.workspaceId || event.focus?.paneId || '';
+    state.events.set(`${event.seq}:${event.type}:${target}`, event);
+  }
+  if (state.events.size > MAX_EVENTS * 2) {
+    const newest = [...state.events.entries()].sort((a, b) => b[1].seq - a[1].seq).slice(0, MAX_EVENTS);
+    state.events = new Map(newest);
+  }
+}
+
+function renderEvents() {
+  const entries = [...state.events.values()].sort((a, b) => b.seq - a.seq || b.ts.localeCompare(a.ts)).slice(0, MAX_EVENTS);
+  $('event-count').textContent = entries.length;
+  $('events').innerHTML = entries.length ? entries.map((event) => {
+    const copy = eventCopy(event);
+    const paneId = event.paneId || event.focus?.paneId || '';
+    const tag = paneId ? 'button' : 'div';
+    const data = paneId ? ` data-pane="${esc(paneId)}" aria-label="${esc(copy.title)}, ${esc(paneId)} pane으로 이동"` : '';
+    return `<${tag} class="event ${eventClass(event)}"${data}>
+      <span class="event-time">${timeOnly(event.ts).slice(0,5)}<b>#${String(event.seq).padStart(4, '0')}</b></span>
+      <span><span class="event-title"><strong>${esc(copy.title)}</strong></span><span class="event-detail">${esc(copy.detail)}</span></span>
+    </${tag}>`;
+  }).join('') : '<div class="empty-map" style="position:relative;height:100%"><div><b>SIGNAL LOG CLEAR</b>새 운행 이벤트를 기다리는 중입니다</div></div>';
+}
+
+function render(snapshot) {
+  renderHeader(snapshot);
+  renderRoutes(snapshot);
+  renderMap(snapshot);
+  renderEvents();
+}
+
+function layoutGeometry() {
+  const snapshot = state.snapshot;
+  const stage = $('map-stage');
+  if (!snapshot || !stage.clientWidth || !stage.clientHeight) return;
+  const workspaces = snapshot.workspaces.filter((workspace) =>
+    snapshot.agents.some((agent) => agent.workspaceId === workspace.workspaceId));
+  const { positions, yFor } = stationPositions(workspaces, snapshot.agents);
+  state.geometry = workspaces.map((workspace, routeIndex) => {
+    const meta = routeMeta(routeIndex);
+    const agents = snapshot.agents.filter((agent) => agent.workspaceId === workspace.workspaceId);
+    return {
+      workspaceId: workspace.workspaceId,
+      color: meta.color,
+      y: stage.clientHeight * yFor(routeIndex) / 100,
+      points: agents.map((agent) => {
+        const pos = positions.get(agent.paneId);
+        return {
+          paneId: agent.paneId,
+          status: agent.status,
+          x: stage.clientWidth * (pos?.x ?? 50) / 100,
+          y: stage.clientHeight * (pos?.y ?? 50) / 100,
+        };
+      }),
+    };
+  });
+  resizeCanvas();
+}
+
+function resizeCanvas() {
+  const canvas = $('network-canvas');
+  const stage = $('map-stage');
+  const ratio = Math.min(devicePixelRatio || 1, 2);
+  const width = Math.max(1, Math.round(stage.clientWidth * ratio));
+  const height = Math.max(1, Math.round(stage.clientHeight * ratio));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+}
+
+function drawNetwork(now) {
+  const canvas = $('network-canvas');
+  const stage = $('map-stage');
+  const ctx = canvas.getContext('2d');
+  const ratio = Math.min(devicePixelRatio || 1, 2);
+  const width = stage.clientWidth;
+  const height = stage.clientHeight;
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(123, 170, 168, .055)';
+  for (let x = 18; x < width; x += 36) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+  }
+  for (let y = 18; y < height; y += 36) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+  }
+
+  const trunkX = width * .081;
+  if (state.geometry.length) {
+    const firstY = state.geometry[0].y;
+    const lastY = state.geometry[state.geometry.length - 1].y;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(92, 130, 130, .25)';
+    ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(trunkX, Math.max(20, firstY - 48)); ctx.lineTo(trunkX, Math.min(height - 20, lastY + 48)); ctx.stroke();
+    ctx.strokeStyle = 'rgba(166, 210, 207, .33)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  for (const route of state.geometry) {
+    const dimmed = state.selectedWorkspace && state.selectedWorkspace !== route.workspaceId;
+    const maxX = route.points.length ? Math.max(...route.points.map((point) => point.x)) + 42 : width * .88;
+    const routeEnd = Math.min(width - 25, Math.max(width * .62, maxX));
+    ctx.globalAlpha = dimmed ? .18 : 1;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#081315';
+    ctx.lineWidth = 11;
+    ctx.beginPath(); ctx.moveTo(trunkX, route.y); ctx.lineTo(routeEnd, route.y); ctx.stroke();
+    ctx.strokeStyle = route.color;
+    ctx.lineWidth = 4;
+    ctx.shadowColor = route.color;
+    ctx.shadowBlur = dimmed ? 0 : 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#071114';
+    ctx.strokeStyle = route.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(trunkX, route.y, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    if (!reducedMotion && !dimmed && route.points.some((point) => point.status === 'working')) {
+      const travel = ((now / 20 + route.y) % Math.max(1, routeEnd - trunkX));
+      const x = trunkX + travel;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = route.color;
+      ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.arc(x, route.y, 3.1, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  const stillActive = [];
+  for (const transition of state.transitions) {
+    const age = now - transition.started;
+    if (age > 1900) continue;
+    stillActive.push(transition);
+    const route = state.geometry.find((item) => item.points.some((point) => point.paneId === transition.paneId));
+    const point = route?.points.find((item) => item.paneId === transition.paneId);
+    if (!point) continue;
+    const progress = age / 1900;
+    ctx.globalAlpha = Math.max(0, 1 - progress);
+    ctx.strokeStyle = STATUS[transition.to]?.color || STATUS.unknown.color;
+    ctx.lineWidth = transition.to === 'blocked' ? 4 : 2;
+    ctx.beginPath(); ctx.arc(point.x, point.y, 24 + progress * 105, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  state.transitions = stillActive;
+  requestAnimationFrame(drawNetwork);
+}
+
+function transitionLabel(event) {
+  if (event.to === 'blocked') return 'SIGNAL FAILURE · 개입 필요';
+  if (event.from === 'blocked' && event.to === 'working') return 'SERVICE RESTORED · 운행 재개';
+  if (event.to === 'working') return 'DEPARTURE · 운행 시작';
+  if (event.to === 'idle') return 'SIDING · 대기선 진입';
+  if (event.to === 'done') return 'TERMINUS · 임무 완료';
+  return `SIGNAL → ${event.to}`;
+}
+
+function playTransition(event) {
+  const station = [...document.querySelectorAll('.station')].find((node) => node.dataset.pane === event.paneId);
+  const stage = $('map-stage');
+  if (!station || !stage) return;
+  const stationRect = station.getBoundingClientRect();
+  const stageRect = stage.getBoundingClientRect();
+  const left = stationRect.left + stationRect.width / 2 - stageRect.left;
+  const top = stationRect.top + stationRect.height / 2 - stageRect.top;
+  const color = STATUS[event.to]?.color || STATUS.unknown.color;
+  const fx = document.createElement('div');
+  fx.className = `transition-burst to-${event.to}${left > stageRect.width * .7 ? ' near-right' : ''}`;
+  fx.style.setProperty('--left', `${left}px`);
+  fx.style.setProperty('--top', `${top}px`);
+  fx.style.setProperty('--burst', color);
+  fx.innerHTML = `<span class="transition-label">${esc(transitionLabel(event))}</span>`;
+  $('fx-layer').append(fx);
+  setTimeout(() => fx.remove(), 1900);
+  state.transitions.push({ paneId: event.paneId, to: event.to, started: performance.now() });
+}
+
+async function focusAgent(paneId) {
+  if (!paneId) return;
+  showToast(`${paneId} 관제권 이동 요청 중…`);
+  const ok = await client.focusPane(paneId);
+  if (ok) showToast(`${paneId} 관제 화면으로 이동했습니다`);
+  else if (state.snapshot?.source === 'mock') showToast('모의 운행에서는 pane 전환 신호만 시연합니다', true);
+  else showToast(`${paneId} 이동 신호를 확인하지 못했습니다`, true);
+}
+
+client.onTransport((up) => {
+  state.transportUp = up;
+  $('transport-dot').classList.toggle('up', up);
+  $('connection-label').textContent = up ? '실시간 링크 정상' : '재연결 시도 중';
+});
+
+client.onUpdate(({ snapshot, events }) => {
+  const firstSnapshot = state.snapshot === null;
+  state.snapshot = snapshot;
+  if (firstSnapshot) addEvents(snapshot.recentEvents);
+  addEvents(events);
+  render(snapshot);
+  requestAnimationFrame(() => {
+    for (const event of events) {
+      if (event.type === 'agent_status_changed') playTransition(event);
+    }
+  });
+});
+
+$('routes').addEventListener('click', (event) => {
+  const route = event.target.closest('.route-card');
+  if (!route || !state.snapshot) return;
+  state.selectedWorkspace = state.selectedWorkspace === route.dataset.workspace ? null : route.dataset.workspace;
+  renderRoutes(state.snapshot);
+  renderMap(state.snapshot);
+});
+
+$('stations').addEventListener('click', (event) => {
+  const station = event.target.closest('.station');
+  if (station) focusAgent(station.dataset.pane);
+});
+
+$('events').addEventListener('click', (event) => {
+  const row = event.target.closest('[data-pane]');
+  if (row) focusAgent(row.dataset.pane);
+});
+
+function updateClock() {
+  $('clock').textContent = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+}
+updateClock();
+setInterval(updateClock, 1000);
+setInterval(() => {
+  if (state.snapshot) renderMap(state.snapshot);
+}, 10000);
+
+new ResizeObserver(layoutGeometry).observe($('map-stage'));
+requestAnimationFrame(drawNetwork);
+</script>
+</body>
+</html>
