@@ -1,0 +1,1118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>오늘도 AI 자율학습 — herdr status</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏫</text></svg>">
+<style>
+  :root {
+    --ink: #24313b;
+    --paper: #fffaf0;
+    --cream: #f3e8cf;
+    --wall: #e9d8b8;
+    --wall-dark: #d4bd93;
+    --wood: #b56e3d;
+    --wood-dark: #764124;
+    --board: #235146;
+    --board-dark: #163a33;
+    --working: #20a56c;
+    --idle: #6483a0;
+    --blocked: #ef3f4f;
+    --blocked-yellow: #ffd83d;
+    --done: #7658d6;
+    --unknown: #7a7f84;
+    --shadow: rgba(45, 35, 25, .22);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100dvh;
+    color: var(--ink);
+    overflow-x: hidden;
+    background: #c9a873;
+    font-family: "Apple SD Gothic Neo", "Noto Sans KR", ui-rounded, system-ui, sans-serif;
+  }
+  button, a { font: inherit; }
+  button { color: inherit; }
+  button:focus-visible, a:focus-visible { outline: 4px solid var(--blocked-yellow); outline-offset: 4px; }
+
+  .topbar {
+    min-height: 78px;
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto minmax(230px, 1fr);
+    position: relative;
+    z-index: 80;
+    border-bottom: 5px solid #704426;
+    background:
+      linear-gradient(rgba(255,255,255,.08), transparent),
+      #89552f;
+    color: #fff9e9;
+    box-shadow: 0 4px 0 rgba(67, 35, 18, .18);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    min-width: 0;
+    padding: 11px 20px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .class-badge {
+    width: 46px;
+    height: 46px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border: 3px solid #f7d677;
+    border-radius: 50%;
+    background: #29584c;
+    color: #fff7d8;
+    box-shadow: inset 0 0 0 2px #163a33, 2px 3px 0 rgba(0,0,0,.18);
+    font: 900 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .brand-copy { min-width: 0; }
+  .brand-copy small {
+    display: block;
+    color: #ebca9b;
+    font: 800 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .18em;
+  }
+  .brand-copy b {
+    display: block;
+    margin-top: 7px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: .02em;
+  }
+
+  .status-board {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(92px, 116px));
+    border-left: 2px solid rgba(255,245,222,.16);
+    border-right: 2px solid rgba(255,245,222,.16);
+  }
+  .status-cell {
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    grid-template-rows: auto auto;
+    align-content: center;
+    gap: 1px 7px;
+    padding: 8px 10px;
+    border-right: 1px solid rgba(255,245,222,.14);
+    background: rgba(0,0,0,.035);
+  }
+  .status-cell:last-child { border-right: 0; }
+  .status-icon { grid-row: 1 / 3; align-self: center; font-size: 22px; filter: drop-shadow(1px 2px 0 rgba(0,0,0,.18)); }
+  .status-cell b { color: var(--state); font: 950 21px/1 ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .status-cell span:last-child { color: #f3dfc3; font-size: 8px; font-weight: 800; white-space: nowrap; }
+  .status-cell.working { --state: #65f0af; }
+  .status-cell.idle { --state: #b5dbff; }
+  .status-cell.blocked { --state: #ffda3e; background: rgba(150, 13, 30, .28); }
+  .status-cell.done { --state: #d9c9ff; }
+  body.has-blocked .status-cell.blocked { animation: header-question 1s ease-in-out infinite; }
+
+  .teacher-meta {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    padding: 10px 20px;
+  }
+  .signal { display: flex; align-items: center; gap: 9px; }
+  .signal-dot { width: 10px; height: 10px; border: 2px solid rgba(255,255,255,.35); border-radius: 50%; background: #8b735f; }
+  .signal-dot.up { background: #5df3a8; box-shadow: 0 0 0 4px rgba(93,243,168,.14), 0 0 12px #5df3a8; }
+  .signal-copy { font: 850 9px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .05em; }
+  .signal-copy small { display: block; color: #e4c8a5; font-weight: 700; }
+  .teacher-time { color: #ffe9b1; font: 900 18px/1 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .frame-no { color: #e0bf96; text-align: right; font: 750 8px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .question-alert {
+    display: none;
+    min-height: 38px;
+    position: relative;
+    z-index: 75;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 7px 14px;
+    overflow: hidden;
+    border-bottom: 4px solid #9e1828;
+    background: var(--blocked);
+    color: #fff;
+    box-shadow: 0 5px 0 rgba(126, 12, 26, .18);
+    text-align: center;
+    font-size: 11px;
+    font-weight: 950;
+    letter-spacing: .04em;
+  }
+  .question-alert::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: .16;
+    background: repeating-linear-gradient(115deg, transparent 0 18px, #fff 18px 25px);
+    animation: alert-stripes 1.2s linear infinite;
+  }
+  .question-alert > * { position: relative; }
+  .alert-hand { padding: 3px 7px; border-radius: 5px; background: var(--blocked-yellow); color: #8b1320; box-shadow: 2px 2px 0 #9e1828; }
+  body.has-blocked .question-alert { display: flex; }
+
+  .classroom {
+    min-height: calc(100dvh - 78px);
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background: var(--wall);
+  }
+  body.has-blocked .classroom { min-height: calc(100dvh - 116px); }
+
+  .back-wall {
+    height: 190px;
+    position: relative;
+    z-index: 4;
+    border-bottom: 12px solid #b68c59;
+    background:
+      linear-gradient(90deg, rgba(130,88,42,.07) 1px, transparent 1px),
+      linear-gradient(rgba(130,88,42,.06) 1px, transparent 1px),
+      var(--wall);
+    background-size: 58px 58px;
+  }
+  .back-wall::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -12px;
+    height: 7px;
+    background: repeating-linear-gradient(90deg, #8e5b31 0 42px, #a86b39 42px 84px);
+  }
+
+  .window-bank {
+    position: absolute;
+    left: 2.2%;
+    top: 18px;
+    width: 20%;
+    height: 145px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 7px;
+    padding: 8px;
+    border: 6px solid #8b613a;
+    background: #c08a52;
+    box-shadow: inset 0 0 0 2px #694327, 3px 5px 0 rgba(62,41,25,.13);
+  }
+  .window {
+    position: relative;
+    overflow: hidden;
+    border: 3px solid #f2e5c9;
+    background:
+      radial-gradient(circle at 75% 23%, #fffbd3 0 8px, transparent 9px),
+      linear-gradient(#7bc7e9 0 62%, #87b970 62% 100%);
+  }
+  .window::before {
+    content: "";
+    position: absolute;
+    left: -8%;
+    right: -8%;
+    bottom: 18%;
+    height: 22%;
+    background: #557f52;
+    clip-path: polygon(0 100%, 18% 35%, 35% 100%, 58% 15%, 84% 100%, 100% 45%, 100% 100%);
+  }
+  .window::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 3px; background: #f2e5c9; }
+
+  .chalkboard {
+    position: absolute;
+    left: 24.5%;
+    right: 22.5%;
+    top: 14px;
+    height: 151px;
+    padding: 13px 20px;
+    border: 9px solid #9a6538;
+    border-radius: 2px;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(255,255,255,.025), transparent 25%),
+      var(--board);
+    color: #f5f0d0;
+    box-shadow: inset 0 0 24px rgba(0,0,0,.18), 3px 5px 0 rgba(70,45,26,.16);
+  }
+  .board-head { display: flex; align-items: baseline; justify-content: space-between; gap: 15px; padding-bottom: 7px; border-bottom: 1px dashed rgba(246,239,205,.3); }
+  .board-head h1 { margin: 0; font-family: ui-rounded, system-ui, sans-serif; font-size: clamp(14px, 1.5vw, 21px); letter-spacing: .05em; }
+  .board-head span { color: #e9ca75; font: 750 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; white-space: nowrap; }
+  .board-body { display: grid; grid-template-columns: minmax(140px, .8fr) 1.4fr; gap: 17px; padding-top: 9px; }
+  .motto { color: #fff8d5; font-size: clamp(10px, 1.05vw, 14px); font-weight: 900; line-height: 1.45; }
+  .motto b { color: #ffd956; }
+  .motto small { display: block; margin-top: 6px; color: #9fd9c7; font: 650 7px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .board-events { min-width: 0; }
+  .chalk-event { display: grid; grid-template-columns: 34px 1fr; gap: 6px; margin-bottom: 4px; color: #beddd3; font: 650 7px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .chalk-event time { color: #e8cb7c; }
+  .chalk-event span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .wall-side {
+    position: absolute;
+    right: 2.2%;
+    top: 18px;
+    width: 18%;
+    height: 145px;
+  }
+  .class-clock {
+    width: 63px;
+    height: 63px;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 8px;
+    position: relative;
+    border: 7px solid #925d35;
+    border-radius: 50%;
+    background: #fff9e9;
+    box-shadow: inset 0 0 0 2px #d7c8ab, 2px 3px 0 rgba(60,39,20,.13);
+  }
+  .class-clock::before { content: "12"; position: absolute; top: 2px; font: 800 7px/1 ui-monospace, monospace; }
+  .clock-hand { position: absolute; left: 50%; bottom: 50%; width: 2px; height: 18px; transform-origin: bottom center; background: #2d3436; border-radius: 2px; }
+  .clock-hand.minute { height: 21px; transform: rotate(var(--minute-angle)); background: #df3f43; }
+  .clock-hand.hour { height: 14px; transform: rotate(var(--hour-angle)); }
+  .class-clock::after { content: ""; position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #2d3436; }
+  .wall-banner { padding: 8px 5px; border: 3px double #ccae71; background: #fff7dc; color: #b02835; box-shadow: 2px 3px 0 rgba(50,35,20,.12); text-align: center; font-size: clamp(8px, .8vw, 11px); font-weight: 950; letter-spacing: .05em; }
+
+  .floor {
+    min-height: 640px;
+    position: relative;
+    z-index: 3;
+    padding: 24px 7% 128px;
+    overflow: hidden;
+    background:
+      linear-gradient(110deg, transparent 49.75%, rgba(90,57,30,.12) 50%, transparent 50.25%) center/9% 100%,
+      repeating-linear-gradient(0deg, rgba(84,51,25,.15) 0 2px, transparent 2px 52px),
+      linear-gradient(#d6ad70, #bb8049);
+    box-shadow: inset 0 22px 35px rgba(80,48,21,.17);
+  }
+  .floor::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    background: rgba(98,58,27,.11);
+    box-shadow: -320px 0 rgba(98,58,27,.08), 320px 0 rgba(98,58,27,.08);
+    transform: perspective(500px) rotateX(32deg);
+  }
+
+  .seating-chart {
+    width: min(930px, 100%);
+    min-height: 520px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    grid-auto-rows: 165px;
+    align-content: space-between;
+    gap: clamp(10px, 2vh, 23px) clamp(25px, 5vw, 82px);
+    margin: 0 auto;
+    position: relative;
+    z-index: 7;
+    perspective: 900px;
+  }
+
+  .seat {
+    --state: var(--unknown);
+    width: 190px;
+    height: 170px;
+    justify-self: center;
+    align-self: end;
+    position: relative;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    transform: scale(var(--scale, 1));
+    transform-origin: center bottom;
+    filter: drop-shadow(0 10px 8px rgba(78,44,22,.17));
+    transition: filter .2s ease, transform .2s ease;
+  }
+  .seat:hover { filter: drop-shadow(0 12px 9px rgba(78,44,22,.27)) brightness(1.04); transform: scale(calc(var(--scale, 1) * 1.035)); }
+  .seat.status-working { --state: var(--working); }
+  .seat.status-idle { --state: var(--idle); }
+  .seat.status-blocked { --state: var(--blocked); z-index: 30; }
+  .seat.status-done { --state: var(--done); }
+  .seat.status-unknown { --state: var(--unknown); }
+  .seat.focused::after {
+    content: "선생님 시선 👁";
+    position: absolute;
+    left: 50%;
+    bottom: -18px;
+    z-index: 12;
+    width: max-content;
+    padding: 3px 7px;
+    transform: translateX(-50%);
+    border: 2px dashed #fff8d0;
+    border-radius: 10px;
+    background: #304f49;
+    color: #fff8d0;
+    font-size: 7px;
+    font-weight: 900;
+  }
+
+  .student-figure {
+    width: 104px;
+    height: 121px;
+    position: absolute;
+    left: 50%;
+    bottom: 47px;
+    z-index: 2;
+    transform: translateX(-50%);
+  }
+  .torso {
+    width: 52px;
+    height: 64px;
+    position: absolute;
+    left: 26px;
+    bottom: 0;
+    border: 3px solid #28383e;
+    border-radius: 15px 15px 8px 8px;
+    background: var(--shirt);
+    box-shadow: inset 0 -8px rgba(0,0,0,.07);
+  }
+  .torso::before {
+    content: "";
+    position: absolute;
+    left: 16px;
+    top: -2px;
+    width: 13px;
+    height: 10px;
+    border: 3px solid #28383e;
+    border-width: 0 3px 3px;
+    background: #f6f0dc;
+    transform: rotate(45deg);
+  }
+  .head {
+    width: 49px;
+    height: 52px;
+    position: absolute;
+    left: 27px;
+    top: 3px;
+    z-index: 5;
+    border: 3px solid #28383e;
+    border-radius: 45% 45% 48% 48%;
+    background: var(--skin);
+    box-shadow: inset 0 -5px rgba(180,88,46,.08);
+    transition: .25s cubic-bezier(.2,.8,.2,1);
+  }
+  .hair {
+    position: absolute;
+    left: -3px;
+    right: -3px;
+    top: -4px;
+    height: 21px;
+    border: 3px solid #28383e;
+    border-bottom: 0;
+    border-radius: 48% 48% 22% 16%;
+    background: var(--hair);
+  }
+  .hair::after { content: ""; position: absolute; right: 2px; bottom: -8px; width: 13px; height: 14px; border-radius: 0 0 70% 40%; background: var(--hair); }
+  .eye { position: absolute; top: 25px; width: 5px; height: 6px; border-radius: 50%; background: #253238; }
+  .eye.left { left: 11px; }
+  .eye.right { right: 11px; }
+  .mouth { position: absolute; left: 18px; top: 37px; width: 10px; height: 5px; border-bottom: 2px solid #9c4b46; border-radius: 50%; }
+  .arm {
+    width: 15px;
+    height: 58px;
+    position: absolute;
+    z-index: 4;
+    border: 3px solid #28383e;
+    border-radius: 9px;
+    background: var(--shirt);
+    transform-origin: center 8px;
+    transition: .28s cubic-bezier(.25,.8,.2,1);
+  }
+  .arm-left { left: 17px; top: 65px; transform: rotate(55deg); }
+  .arm-right { right: 17px; top: 65px; transform: rotate(-55deg); }
+  .hand {
+    width: 16px;
+    height: 16px;
+    position: absolute;
+    left: -3px;
+    bottom: -9px;
+    border: 2px solid #28383e;
+    border-radius: 50%;
+    background: var(--skin);
+  }
+  .hand-symbol { display: none; position: absolute; left: -9px; bottom: -17px; font-size: 25px; line-height: 1; filter: drop-shadow(1px 2px 0 rgba(0,0,0,.17)); }
+  .pencil {
+    width: 4px;
+    height: 33px;
+    display: none;
+    position: absolute;
+    right: 14px;
+    top: 87px;
+    z-index: 10;
+    border-radius: 2px;
+    background: #f1bf35;
+    box-shadow: inset 0 -5px #e7674f;
+    transform: rotate(42deg);
+  }
+
+  .desk {
+    width: 182px;
+    height: 59px;
+    position: absolute;
+    left: 4px;
+    bottom: 0;
+    z-index: 8;
+  }
+  .desk-top {
+    height: 26px;
+    position: relative;
+    z-index: 5;
+    border: 3px solid #67391f;
+    border-radius: 5px;
+    background: linear-gradient(#d5945d, #b86e3c);
+    box-shadow: inset 0 4px rgba(255,255,255,.14), 0 5px 0 #814825;
+    transform: perspective(160px) rotateX(7deg);
+  }
+  .desk-front {
+    width: 165px;
+    height: 34px;
+    position: absolute;
+    left: 8px;
+    top: 23px;
+    border: 3px solid #65391f;
+    border-top: 0;
+    border-radius: 0 0 7px 7px;
+    background: #a85f34;
+    box-shadow: inset 0 -8px rgba(83,44,22,.12);
+  }
+  .desk-leg { width: 8px; height: 25px; position: absolute; top: 52px; z-index: -1; border: 2px solid #553421; background: #775035; }
+  .desk-leg.left { left: 17px; }
+  .desk-leg.right { right: 17px; }
+  .task-paper {
+    width: 145px;
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    left: 18px;
+    top: -19px;
+    z-index: 7;
+    padding: 4px 9px;
+    overflow: hidden;
+    border: 2px solid #c9bd9d;
+    border-radius: 3px;
+    background: repeating-linear-gradient(#fffdf1 0 9px, #dce7e4 10px 11px);
+    color: #39464d;
+    box-shadow: 2px 3px 0 rgba(74,44,24,.13);
+    text-align: center;
+    font-size: 8px;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+  .nameplate {
+    max-width: 125px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    position: absolute;
+    left: 50%;
+    top: 5px;
+    padding: 3px 8px;
+    transform: translateX(-50%);
+    border: 2px solid #51301e;
+    border-radius: 3px;
+    background: #fff1c7;
+    color: #3b2a21;
+    box-shadow: 1px 2px 0 rgba(59,36,19,.2);
+    white-space: nowrap;
+    font-size: 8px;
+    font-weight: 950;
+  }
+  .nameplate i { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--state); box-shadow: 0 0 0 2px color-mix(in srgb, var(--state) 22%, transparent); }
+  .nameplate em { overflow: hidden; text-overflow: ellipsis; font-style: normal; }
+  .pane-label { position: absolute; right: 7px; bottom: 3px; color: #77492e; font: 700 6px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .pose-note {
+    position: absolute;
+    z-index: 20;
+    padding: 7px 10px;
+    border: 3px solid #2c3940;
+    border-radius: 12px;
+    background: #fffaf0;
+    color: #28353b;
+    box-shadow: 3px 4px 0 rgba(45,34,22,.2);
+    font-size: 9px;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+  .pose-note::after { content: ""; position: absolute; width: 10px; height: 10px; border: 3px solid #2c3940; border-width: 0 3px 3px 0; background: inherit; transform: rotate(45deg); }
+  .working-note, .idle-note, .blocked-note, .done-note { display: none; }
+
+  .status-working .pencil { display: block; animation: write-pencil .42s ease-in-out infinite alternate; }
+  .status-working .head { animation: study-nod 2s ease-in-out infinite; }
+  .status-working .working-note { display: block; right: -4px; top: 12px; padding: 4px 7px; border-width: 2px; border-color: #398665; color: var(--working); font-size: 7px; }
+  .status-working .working-note::after { display: none; }
+
+  .status-idle .head { top: 61px; left: 23px; transform: rotate(9deg); }
+  .status-idle .eye { height: 2px; border-radius: 2px; }
+  .status-idle .mouth { display: none; }
+  .status-idle .arm-left { left: 13px; top: 83px; transform: rotate(82deg); }
+  .status-idle .arm-right { right: 13px; top: 83px; transform: rotate(-82deg); }
+  .status-idle .idle-note { display: block; right: -1px; top: 25px; border-color: var(--idle); color: var(--idle); background: #f6fbff; transform: rotate(-7deg); }
+  .status-idle .idle-note::after { left: 5px; bottom: -7px; border-color: var(--idle); }
+
+  .status-blocked::before,
+  .status-blocked::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 43%;
+    z-index: -1;
+    width: 180px;
+    height: 180px;
+    transform: translate(-50%,-50%);
+    border: 5px solid var(--blocked);
+    border-radius: 50%;
+    opacity: .7;
+    animation: question-ring 1.25s ease-out infinite;
+  }
+  .status-blocked::after { animation-delay: .42s; }
+  .status-blocked .arm-right { right: 7px; top: -43px; z-index: 7; height: 83px; transform: rotate(7deg); }
+  .status-blocked .arm-right .hand { display: none; }
+  .status-blocked .arm-right .hand-symbol { display: block; left: -10px; top: -18px; bottom: auto; font-size: 0; transform: rotate(-7deg); }
+  .status-blocked .arm-right .hand-symbol::before { content: "✋"; font-size: 29px; }
+  .status-blocked .head { animation: question-bounce .55s ease-in-out infinite alternate; }
+  .status-blocked .eye { width: 6px; height: 8px; }
+  .status-blocked .mouth { left: 19px; width: 8px; height: 8px; border: 2px solid #9c4b46; border-radius: 50%; }
+  .status-blocked .blocked-note {
+    display: block;
+    right: -48px;
+    top: -29px;
+    border-color: #971927;
+    background: var(--blocked-yellow);
+    color: #871321;
+    box-shadow: 4px 5px 0 rgba(133,17,32,.24), 0 0 22px rgba(255,216,61,.75);
+    font-size: 11px;
+    animation: note-pop .7s ease-in-out infinite alternate;
+  }
+  .status-blocked .blocked-note::after { left: 12px; bottom: -8px; border-color: #971927; }
+  .status-blocked .desk-front { background: #c83c48; }
+
+  .status-done .arm-left { left: 9px; top: 11px; height: 70px; transform: rotate(-30deg); }
+  .status-done .arm-right { right: 9px; top: 11px; height: 70px; transform: rotate(30deg); }
+  .status-done .arm { transform-origin: center bottom; }
+  .status-done .hand { display: none; }
+  .status-done .hand-symbol { display: block; top: -17px; bottom: auto; }
+  .status-done .arm-left .hand-symbol { transform: rotate(30deg); }
+  .status-done .arm-right .hand-symbol { transform: rotate(-30deg); }
+  .status-done .eye { top: 26px; height: 3px; border-radius: 50% 50% 0 0; }
+  .status-done .mouth { left: 14px; top: 35px; width: 16px; height: 9px; border-width: 0 0 3px; }
+  .status-done .done-note { display: block; right: -35px; top: -6px; border-color: var(--done); color: var(--done); background: #fbf8ff; transform: rotate(5deg); }
+  .status-done .done-note::after { left: 8px; bottom: -7px; border-color: var(--done); }
+
+  .empty-seat { opacity: .45; filter: grayscale(.4); cursor: default; }
+  .empty-seat:hover { transform: scale(var(--scale,1)); filter: grayscale(.4); }
+  .empty-seat .student-figure { display: none; }
+  .empty-seat .task-paper { color: #9b8c7b; font-weight: 700; }
+  .empty-seat .nameplate { background: #d9c69f; color: #715b45; }
+
+  .teacher-desk {
+    width: min(530px, 64vw);
+    height: 96px;
+    position: absolute;
+    left: 50%;
+    bottom: -13px;
+    z-index: 45;
+    transform: translateX(-50%);
+    border: 6px solid #61351e;
+    border-radius: 7px 7px 0 0;
+    background: linear-gradient(#bb7441 0 22%, #95532d 22% 100%);
+    box-shadow: inset 0 7px rgba(255,255,255,.1), 0 -10px 25px rgba(72,39,20,.2);
+  }
+  .teacher-desk::before {
+    content: "교사용 관찰일지";
+    position: absolute;
+    left: 50%;
+    top: 30px;
+    padding: 6px 18px;
+    transform: translateX(-50%);
+    border: 3px solid #5e351f;
+    background: #f9e6b1;
+    color: #624127;
+    box-shadow: 2px 3px 0 rgba(58,31,15,.18);
+    font-size: 10px;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+  .event-slip {
+    max-width: 210px;
+    position: absolute;
+    left: 16px;
+    top: -21px;
+    padding: 7px 10px;
+    overflow: hidden;
+    border: 2px solid #c5b78f;
+    border-radius: 2px;
+    background: #fffceb;
+    color: #4d5b60;
+    box-shadow: 2px 3px 0 rgba(56,31,16,.18);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font: 750 7px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .pointer {
+    width: 250px;
+    height: 7px;
+    position: absolute;
+    right: -105px;
+    top: -44px;
+    transform: rotate(-28deg);
+    transform-origin: right center;
+    border: 2px solid #52321f;
+    border-radius: 6px;
+    background: #d8b36c;
+    box-shadow: 2px 3px 0 rgba(55,31,16,.14);
+  }
+  .pointer::before { content: ""; position: absolute; left: -10px; top: -5px; width: 12px; height: 12px; border: 2px solid #852933; border-radius: 50%; background: #ef5260; }
+  .teacher-hand { position: absolute; right: -33px; top: -18px; font-size: 42px; transform: rotate(-26deg); filter: drop-shadow(2px 3px 0 rgba(0,0,0,.15)); }
+
+  .fx-layer { position: absolute; inset: 0; z-index: 65; overflow: hidden; pointer-events: none; }
+  .transition-fx { --fx: var(--working); position: absolute; left: var(--left); top: var(--top); }
+  .transition-fx::before, .transition-fx::after {
+    content: "";
+    position: absolute;
+    left: -25px;
+    top: -25px;
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--fx);
+    border-radius: 50%;
+    animation: transition-ring 1.9s ease-out forwards;
+  }
+  .transition-fx::after { animation-delay: .16s; }
+  .transition-message {
+    width: max-content;
+    max-width: 260px;
+    position: absolute;
+    left: 35px;
+    top: -38px;
+    padding: 10px 14px;
+    border: 4px solid #25343a;
+    border-radius: 15px;
+    background: #fffceb;
+    color: var(--fx);
+    box-shadow: 5px 6px 0 rgba(40,38,28,.2);
+    font-size: 12px;
+    font-weight: 950;
+    white-space: nowrap;
+    animation: transition-message 1.9s ease forwards;
+  }
+  .transition-fx.near-right .transition-message { left: auto; right: 35px; }
+  .transition-fx.to-blocked .transition-message { border-color: #8f1725; background: var(--blocked-yellow); color: #8f1725; font-size: 14px; }
+  .fx-particle { position: absolute; left: 0; top: 0; color: var(--fx); font-size: 17px; font-weight: 950; animation: particle-pop 1.7s ease-out forwards; animation-delay: var(--delay); }
+  body.question-flash .classroom { animation: room-question .7s ease-in-out 2; }
+
+  .offline {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 72;
+    place-items: center;
+    background: rgba(70,57,40,.28);
+    backdrop-filter: grayscale(.7) blur(2px);
+  }
+  .offline div { padding: 16px 22px; border: 5px solid #80303a; background: #fff4dd; color: #91303a; box-shadow: 5px 6px 0 rgba(77,42,29,.18); text-align: center; font-size: 13px; font-weight: 950; }
+  .offline small { display: block; margin-top: 5px; color: #7b6b5a; font-size: 8px; }
+  body.source-offline .offline { display: grid; }
+
+  .toast {
+    min-width: 270px;
+    max-width: calc(100vw - 30px);
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    z-index: 100;
+    padding: 12px 17px;
+    transform: translate(-50%, 18px);
+    border: 4px solid #235146;
+    border-radius: 8px;
+    background: #fff8df;
+    color: #235146;
+    box-shadow: 5px 6px 0 rgba(48,36,23,.25);
+    opacity: 0;
+    pointer-events: none;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 950;
+    transition: .2s ease;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.fail { border-color: #b46a2c; color: #a15720; }
+
+  @keyframes header-question { 50% { background: rgba(255,216,61,.3); } }
+  @keyframes alert-stripes { to { background-position: 53px 0; } }
+  @keyframes write-pencil { to { transform: rotate(36deg) translate(3px,2px); } }
+  @keyframes study-nod { 50% { transform: rotate(2deg) translateY(2px); } }
+  @keyframes question-ring { from { transform: translate(-50%,-50%) scale(.35); opacity: .85; } to { transform: translate(-50%,-50%) scale(1.18); opacity: 0; } }
+  @keyframes question-bounce { to { transform: translateY(-3px) rotate(-2deg); } }
+  @keyframes note-pop { to { transform: translateY(-4px) rotate(2deg); } }
+  @keyframes transition-ring { from { transform: scale(.4); opacity: .9; } to { transform: scale(4.8); opacity: 0; } }
+  @keyframes transition-message { 0% { transform: translateY(10px) scale(.8); opacity: 0; } 14%,75% { transform: none; opacity: 1; } 100% { transform: translateY(-8px); opacity: 0; } }
+  @keyframes particle-pop { from { transform: translate(0,0) scale(.4) rotate(0); opacity: 1; } to { transform: translate(var(--dx),var(--dy)) scale(1.2) rotate(180deg); opacity: 0; } }
+  @keyframes room-question { 50% { box-shadow: inset 0 0 0 11px rgba(239,63,79,.55), inset 0 0 80px rgba(255,216,61,.25); } }
+
+  @media (max-width: 1120px) {
+    .topbar { grid-template-columns: 240px 1fr 190px; }
+    .status-board { grid-template-columns: repeat(4, 1fr); }
+    .status-cell { grid-template-columns: 24px 1fr; padding: 8px 6px; }
+    .status-icon { font-size: 18px; }
+    .teacher-meta { padding: 9px 13px; gap: 9px; }
+    .seating-chart { gap-left: 20px; }
+    .chalkboard { left: 23.5%; right: 21.5%; }
+  }
+
+  @media (max-width: 880px) {
+    .topbar { grid-template-columns: 1fr auto; }
+    .brand { padding: 10px 14px; }
+    .teacher-meta { padding: 10px 14px; }
+    .status-board { grid-column: 1 / -1; grid-row: 2; border-width: 2px 0 0; }
+    .status-cell { grid-template-columns: 26px 1fr auto; grid-template-rows: auto; min-height: 48px; }
+    .status-icon { grid-row: auto; }
+    .classroom, body.has-blocked .classroom { min-height: 850px; }
+    .back-wall { height: 180px; }
+    .window-bank { width: 22%; }
+    .chalkboard { left: 25.5%; right: 22.5%; }
+    .board-body { grid-template-columns: 1fr; }
+    .motto small { display: none; }
+    .board-events .chalk-event:nth-child(n+3) { display: none; }
+    .seating-chart { grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 16px 10px; }
+    .seat { transform: scale(calc(var(--scale,1) * .9)); }
+    .seat:hover { transform: scale(calc(var(--scale,1) * .93)); }
+  }
+
+  @media (max-width: 620px) {
+    body { overflow: auto; }
+    .topbar { grid-template-columns: 1fr auto; }
+    .class-badge { width: 38px; height: 38px; font-size: 10px; }
+    .brand-copy small { font-size: 6px; letter-spacing: .11em; }
+    .brand-copy b { margin-top: 5px; font-size: 14px; }
+    .teacher-time, .frame-no { display: none; }
+    .signal-copy { font-size: 8px; }
+    .status-board { overflow-x: auto; grid-template-columns: repeat(4, minmax(86px, 1fr)); }
+    .status-cell { grid-template-columns: 23px 1fr; min-width: 86px; }
+    .status-cell b { font-size: 17px; }
+    .status-cell span:last-child { grid-column: 2; font-size: 7px; }
+    .question-alert { justify-content: flex-start; font-size: 9px; }
+    .classroom, body.has-blocked .classroom { min-height: 1440px; overflow: hidden; }
+    .back-wall { height: 218px; }
+    .window-bank, .wall-side { display: none; }
+    .chalkboard { left: 12px; right: 12px; top: 13px; height: 181px; padding: 12px; }
+    .board-head { display: block; }
+    .board-head span { display: block; margin-top: 5px; }
+    .board-body { gap: 8px; }
+    .motto { font-size: 10px; }
+    .chalk-event { font-size: 6px; }
+    .floor { min-height: 1220px; padding: 28px 4px 132px; }
+    .seating-chart {
+      width: 100%;
+      min-height: 1050px;
+      grid-template-columns: repeat(2, minmax(150px, 1fr));
+      grid-auto-rows: 184px;
+      align-content: start;
+      gap: 25px 0;
+    }
+    .seat, .seat:hover { transform: scale(.82); }
+    .status-blocked .blocked-note { right: -31px; }
+    .teacher-desk { width: 88vw; }
+    .event-slip { max-width: 140px; }
+    .pointer { right: -145px; }
+    .transition-message { max-width: 175px; white-space: normal; line-height: 1.35; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="관전 UI 갤러리로 돌아가기">
+      <span class="class-badge">AI 3-2</span>
+      <span class="brand-copy"><small>HERDR AUTONOMOUS CLASS</small><b>오늘도 AI 자율학습</b></span>
+    </a>
+
+    <div class="status-board" aria-label="학생 상태 집계">
+      <div class="status-cell working"><span class="status-icon">✎</span><b id="count-working">0</b><span>열공 중 · WORKING</span></div>
+      <div class="status-cell idle"><span class="status-icon">Zz</span><b id="count-idle">0</b><span>엎드림 · IDLE</span></div>
+      <div class="status-cell blocked"><span class="status-icon">✋</span><b id="count-blocked">0</b><span>질문 있음 · BLOCKED</span></div>
+      <div class="status-cell done"><span class="status-icon">👍</span><b id="count-done">0</b><span>따봉 완료 · DONE</span></div>
+    </div>
+
+    <div class="teacher-meta">
+      <div class="signal"><i class="signal-dot" id="signal-dot"></i><span class="signal-copy">교실 연결<small id="signal-copy">출석 확인 중</small></span></div>
+      <div class="teacher-time" id="teacher-time">--:--:--</div>
+      <div class="frame-no">관찰 #<span id="seq">0000</span></div>
+    </div>
+  </header>
+
+  <div class="question-alert" role="status" aria-live="polite">
+    <span class="alert-hand">✋</span><span id="question-copy">질문한 학생이 있습니다</span><span class="alert-hand">선생님!</span>
+  </div>
+
+  <main class="classroom" id="classroom">
+    <section class="back-wall" aria-label="교실 뒤쪽 벽과 칠판">
+      <div class="window-bank" aria-hidden="true"><div class="window"></div><div class="window"></div></div>
+      <div class="chalkboard">
+        <div class="board-head"><h1>3학년 2반 · 자율학습 관찰일지</h1><span id="source-label">SOURCE · WAITING</span></div>
+        <div class="board-body">
+          <div class="motto">오늘의 급훈<br><b>“막히면 손을 번쩍!”</b><small>공부 중 ✎ · 엎드림 Zz · 질문 ✋ · 완료 👍</small></div>
+          <div class="board-events" id="board-events"></div>
+        </div>
+      </div>
+      <div class="wall-side" aria-hidden="true">
+        <div class="class-clock"><i class="clock-hand hour"></i><i class="clock-hand minute"></i></div>
+        <div class="wall-banner">질문은 용기 있게<br>완료는 따봉으로</div>
+      </div>
+    </section>
+
+    <section class="floor" aria-label="학생 좌석">
+      <div class="seating-chart" id="seating-chart"></div>
+      <div class="teacher-desk" aria-hidden="true">
+        <div class="event-slip" id="event-slip">새 관찰 기록을 기다리는 중…</div>
+        <div class="pointer"></div><div class="teacher-hand">✊</div>
+      </div>
+    </section>
+
+    <div class="fx-layer" id="fx-layer" aria-hidden="true"></div>
+    <div class="offline"><div>교실 연결이 잠시 끊겼습니다<small>마지막 출석 상태를 유지하는 중</small></div></div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+import { connect } from '/sdk.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[char]));
+
+const STATUS = {
+  working: { label: '열심히 공부 중', color: '#20a56c', transition: '공부 시작! 연필이 움직여요 ✎' },
+  idle: { label: '책상에 엎드림', color: '#6483a0', transition: '꾸벅… 잠깐 쉬어 갈게요 Zz' },
+  blocked: { label: '손들고 질문 중', color: '#ef3f4f', transition: '선생님! 질문 있어요! ✋' },
+  done: { label: '양손 따봉 완료', color: '#7658d6', transition: '다 했어요! 양손 따봉! 👍👍' },
+  unknown: { label: '상태 확인 중', color: '#7a7f84', transition: '출석 상태 확인 중' },
+};
+
+const STUDENT_STYLES = [
+  { skin: '#f1bf91', hair: '#3f2c27', shirt: '#6db8d5' },
+  { skin: '#d99b6c', hair: '#251d1b', shirt: '#ef887b' },
+  { skin: '#f4cfa8', hair: '#6f442b', shirt: '#87c77a' },
+  { skin: '#bd7d54', hair: '#30241f', shirt: '#a992df' },
+  { skin: '#e9b582', hair: '#1e252b', shirt: '#e3ad54' },
+  { skin: '#f5d1ae', hair: '#713d31', shirt: '#63c3ae' },
+];
+const MAX_EVENTS = 80;
+const state = { snapshot: null, events: new Map(), transportUp: false };
+const client = connect();
+let toastTimer = 0;
+
+function shortName(agent) {
+  return agent.name || `${agent.kind}-${agent.paneId.split(':').pop()}`;
+}
+
+function timeOnly(iso) {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? '--:--:--' : date.toLocaleTimeString('ko-KR', { hour12: false });
+}
+
+function eventKey(event) {
+  const target = event.paneId || event.workspaceId || event.focus?.paneId || '';
+  return `${event.seq}:${event.type}:${target}`;
+}
+
+function addEvents(events) {
+  for (const event of events) state.events.set(eventKey(event), event);
+  if (state.events.size > MAX_EVENTS * 2) {
+    state.events = new Map([...state.events.entries()].sort((a, b) => b[1].seq - a[1].seq).slice(0, MAX_EVENTS));
+  }
+}
+
+function describeEvent(event) {
+  const who = event.name || event.kind || event.paneId || '교실';
+  switch (event.type) {
+    case 'agent_status_changed': return `${who}: ${STATUS[event.from]?.label || event.from} → ${STATUS[event.to]?.label || event.to}`;
+    case 'agent_appeared': return `${who} 학생이 교실에 들어왔어요`;
+    case 'agent_left': return `${who} 학생이 교실을 나갔어요`;
+    case 'agent_title_changed': return `${who} 공책: ${event.title}`;
+    case 'focus_changed': return event.focus.paneId ? `선생님 시선 → ${event.focus.paneId}` : '선생님이 교실 전체를 보는 중';
+    case 'pane_opened': return `${event.paneId} 자리를 준비했어요`;
+    case 'pane_closed': return `${event.paneId} 자리를 정리했어요`;
+    case 'workspace_opened': return `${event.label} 모둠이 합류했어요`;
+    case 'workspace_closed': return `${event.label} 모둠 활동이 끝났어요`;
+    case 'source_connected': return '교실 출석 시스템 연결 완료';
+    case 'source_disconnected': return '교실 출석 시스템 연결 끊김';
+    default: return event.type;
+  }
+}
+
+function renderHeader(snapshot) {
+  for (const status of ['working', 'idle', 'blocked', 'done']) {
+    $(`count-${status}`).textContent = snapshot.stats[status] ?? 0;
+  }
+  $('seq').textContent = String(snapshot.seq).padStart(4, '0');
+  $('source-label').textContent = `${snapshot.source.toUpperCase()} CLASS · ${snapshot.connected ? 'LIVE' : 'HOLD'}`;
+  document.body.classList.toggle('source-offline', !snapshot.connected);
+  document.body.classList.toggle('has-blocked', snapshot.stats.blocked > 0);
+  const blocked = snapshot.agents.filter((agent) => agent.status === 'blocked');
+  $('question-copy').textContent = blocked.length
+    ? `${blocked.map(shortName).join(' · ')} 학생이 손을 들었습니다 — 질문 ${blocked.length}건!`
+    : '질문한 학생이 없습니다';
+}
+
+function renderBoard() {
+  const events = [...state.events.values()].sort((a, b) => b.seq - a.seq).slice(0, 4);
+  $('board-events').innerHTML = events.length ? events.map((event) =>
+    `<div class="chalk-event"><time>${timeOnly(event.ts).slice(0,5)}</time><span>${esc(describeEvent(event))}</span></div>`
+  ).join('') : '<div class="chalk-event"><time>--:--</time><span>첫 관찰 기록을 기다리는 중…</span></div>';
+  $('event-slip').textContent = events[0] ? `#${events[0].seq} ${describeEvent(events[0])}` : '새 관찰 기록을 기다리는 중…';
+}
+
+function studentMarkup(agent, index) {
+  const status = STATUS[agent.status] || STATUS.unknown;
+  const style = STUDENT_STYLES[index % STUDENT_STYLES.length];
+  const row = Math.floor(index / 3);
+  const scale = [.79, .9, 1][row] || 1;
+  return `<button class="seat status-${esc(agent.status)}${agent.focused ? ' focused' : ''}" data-pane="${esc(agent.paneId)}"
+    style="--scale:${scale};--skin:${style.skin};--hair:${style.hair};--shirt:${style.shirt};--state:${status.color}"
+    aria-label="${esc(shortName(agent))}, ${status.label}, ${esc(agent.title)}, 클릭하여 pane 이동">
+    <span class="student-figure">
+      <span class="torso"></span>
+      <span class="arm arm-left"><i class="hand"></i><i class="hand-symbol">👍</i></span>
+      <span class="arm arm-right"><i class="hand"></i><i class="hand-symbol">👍</i></span>
+      <span class="head"><i class="hair"></i><i class="eye left"></i><i class="eye right"></i><i class="mouth"></i></span>
+      <i class="pencil"></i>
+      <span class="pose-note working-note">사각사각 ✎</span>
+      <span class="pose-note idle-note">Zz…</span>
+      <span class="pose-note blocked-note">선생님! 질문이요!</span>
+      <span class="pose-note done-note">완료! 따봉!</span>
+    </span>
+    <span class="desk">
+      <span class="task-paper">${esc(agent.title || '오늘의 과제 확인 중')}</span>
+      <span class="desk-top"></span>
+      <span class="desk-front"><span class="nameplate"><i></i><em>${esc(shortName(agent))}</em></span><span class="pane-label">${esc(agent.paneId)}</span></span>
+      <i class="desk-leg left"></i><i class="desk-leg right"></i>
+    </span>
+  </button>`;
+}
+
+function emptySeatMarkup(index) {
+  const row = Math.floor(index / 3);
+  const scale = [.79, .9, 1][row] || 1;
+  return `<div class="seat empty-seat" style="--scale:${scale}">
+    <span class="desk"><span class="task-paper">다음 학생 자리</span><span class="desk-top"></span><span class="desk-front"><span class="nameplate"><em>빈 자리</em></span></span><i class="desk-leg left"></i><i class="desk-leg right"></i></span>
+  </div>`;
+}
+
+function renderSeats(snapshot) {
+  const students = snapshot.agents.slice(0, 9);
+  const seats = Array.from({ length: 9 }, (_, index) => students[index] ? studentMarkup(students[index], index) : emptySeatMarkup(index));
+  $('seating-chart').innerHTML = seats.join('');
+}
+
+function render(snapshot) {
+  renderHeader(snapshot);
+  renderBoard();
+  renderSeats(snapshot);
+}
+
+function showToast(message, fail = false) {
+  const toast = $('toast');
+  toast.textContent = message;
+  toast.classList.toggle('fail', fail);
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+async function focusStudent(paneId) {
+  if (!paneId) return;
+  showToast(`${paneId} 학생 자리로 시선을 옮기는 중…`);
+  const ok = await client.focusPane(paneId);
+  if (ok) showToast(`${paneId} 학생 자리로 이동했습니다`);
+  else if (state.snapshot?.source === 'mock') showToast('모의 교실에서는 자리 이동 신호만 시연합니다', true);
+  else showToast(`${paneId} 자리 이동 신호를 확인하지 못했습니다`, true);
+}
+
+function playTransition(event) {
+  const seat = [...document.querySelectorAll('.seat[data-pane]')].find((node) => node.dataset.pane === event.paneId);
+  const classroom = $('classroom');
+  if (!seat || !classroom) return;
+  const seatRect = seat.getBoundingClientRect();
+  const roomRect = classroom.getBoundingClientRect();
+  const left = seatRect.left + seatRect.width / 2 - roomRect.left;
+  const top = seatRect.top + seatRect.height * .34 - roomRect.top;
+  const status = STATUS[event.to] || STATUS.unknown;
+  const fx = document.createElement('div');
+  fx.className = `transition-fx to-${event.to}${left > roomRect.width * .68 ? ' near-right' : ''}`;
+  fx.style.setProperty('--left', `${left}px`);
+  fx.style.setProperty('--top', `${top}px`);
+  fx.style.setProperty('--fx', status.color);
+  const particles = Array.from({ length: event.to === 'blocked' ? 12 : 8 }, (_, index) => {
+    const angle = index / (event.to === 'blocked' ? 12 : 8) * Math.PI * 2;
+    const distance = event.to === 'blocked' ? 105 : 78;
+    const symbol = event.to === 'blocked' ? '?' : event.to === 'done' ? '★' : event.to === 'idle' ? 'z' : '✦';
+    return `<i class="fx-particle" style="--dx:${Math.cos(angle) * distance}px;--dy:${Math.sin(angle) * distance}px;--delay:${index * .025}s">${symbol}</i>`;
+  }).join('');
+  fx.innerHTML = `<span class="transition-message">${esc(status.transition)}</span>${particles}`;
+  $('fx-layer').append(fx);
+  if (event.to === 'blocked') {
+    document.body.classList.add('question-flash');
+    setTimeout(() => document.body.classList.remove('question-flash'), 1500);
+  }
+  setTimeout(() => fx.remove(), 2100);
+}
+
+client.onTransport((up) => {
+  state.transportUp = up;
+  $('signal-dot').classList.toggle('up', up);
+  $('signal-copy').textContent = up ? '출석 신호 정상' : '재연결 확인 중';
+});
+
+client.onUpdate(({ snapshot, events }) => {
+  const first = state.snapshot === null;
+  state.snapshot = snapshot;
+  if (first) addEvents(snapshot.recentEvents);
+  addEvents(events);
+  render(snapshot);
+  requestAnimationFrame(() => {
+    for (const event of events) if (event.type === 'agent_status_changed') playTransition(event);
+  });
+});
+
+$('seating-chart').addEventListener('click', (event) => {
+  const seat = event.target.closest('.seat[data-pane]');
+  if (seat) focusStudent(seat.dataset.pane);
+});
+
+function updateClock() {
+  const now = new Date();
+  $('teacher-time').textContent = now.toLocaleTimeString('ko-KR', { hour12: false });
+  const minutes = now.getMinutes();
+  const hours = now.getHours() % 12;
+  document.documentElement.style.setProperty('--minute-angle', `${minutes * 6}deg`);
+  document.documentElement.style.setProperty('--hour-angle', `${hours * 30 + minutes * .5}deg`);
+}
+updateClock();
+setInterval(updateClock, 1000);
+setInterval(() => { if (state.snapshot) render(state.snapshot); }, 10000);
+</script>
+</body>
+</html>
