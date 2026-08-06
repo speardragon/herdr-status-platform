@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D 교실 · 3학년 herdr반</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏫</text></svg>">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="stage"></div>
+
+  <header class="hud hud-top">
+    <a class="back" href="/" title="갤러리로">←</a>
+    <span class="title">3학년 herdr반 <em>교탁 시점</em></span>
+    <span class="dot" id="transport"></span>
+    <span class="chip" id="source">연결 대기</span>
+    <span class="chip mono" id="seq">#0</span>
+    <span class="spacer"></span>
+    <span class="stats" id="stats"></span>
+  </header>
+
+  <section class="hud hud-feed">
+    <h2>교실 일지</h2>
+    <div id="feed"></div>
+  </section>
+
+  <footer class="hud hud-bottom">
+    <span id="roster">착석 0명</span>
+    <span class="hint">학생 클릭 = herdr에서 그 pane으로 점프 · 마우스를 움직이면 시점이 따라옵니다</span>
+  </footer>
+
+  <div id="tooltip" class="tooltip"></div>
+  <div id="toast" class="toast"></div>
+  <div id="loading" class="loading">교실 준비 중…</div>
+
+<script type="module" src="./src/main.mjs"></script>
+</body>
+</html>

@@ -1,0 +1,207 @@
+/* HTML 오버레이 전용 스타일. 3D 씬이 주인공이므로 계기판은 얇고 반투명하게. */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0d1014;
+  color: #e6ecf3;
+  font: 13px/1.5 system-ui, -apple-system, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+}
+
+#stage { position: fixed; inset: 0; }
+#stage canvas { display: block; width: 100%; height: 100%; }
+
+.hud {
+  position: fixed;
+  z-index: 5;
+  backdrop-filter: blur(10px) saturate(1.2);
+  background: rgba(11, 14, 19, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.35);
+}
+
+/* ───── 상단 바 ───── */
+.hud-top {
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 14px;
+}
+
+.back {
+  color: #cbd5e1;
+  text-decoration: none;
+  font-size: 15px;
+  padding: 0 6px;
+  border-radius: 8px;
+}
+.back:hover { background: rgba(255, 255, 255, 0.1); }
+
+.title { font-weight: 700; letter-spacing: -0.2px; }
+.title em { font-style: normal; font-weight: 500; color: #8d9aab; margin-left: 6px; font-size: 12px; }
+
+.spacer { flex: 1 1 auto; }
+
+.dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #64707d; box-shadow: 0 0 0 3px rgba(100, 112, 125, 0.18);
+  transition: background 0.25s, box-shadow 0.25s;
+}
+.dot.up { background: #3fd35f; box-shadow: 0 0 0 3px rgba(63, 211, 95, 0.22); }
+
+.chip {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #b9c5d3;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.chip.warn { background: rgba(255, 83, 71, 0.18); color: #ffb3ac; }
+.mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+
+.stats { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 10px 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  color: #c7d2de;
+}
+.pill i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.pill b { font-variant-numeric: tabular-nums; color: #fff; }
+.pill.blocked { background: rgba(255, 83, 71, 0.16); }
+
+/* ───── 이벤트 피드 ───── */
+.hud-feed {
+  right: 12px;
+  bottom: 58px;
+  width: min(340px, 42vw);
+  padding: 8px 0 4px;
+  border-radius: 12px;
+}
+.hud-feed h2 {
+  margin: 0 12px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: #7f8c9c;
+  text-transform: uppercase;
+}
+#feed { max-height: 30vh; overflow: hidden; }
+.feed-row {
+  padding: 3px 12px;
+  font-size: 12px;
+  color: #b3c0ce;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: slide-in 0.32s ease-out;
+}
+.feed-row .at { color: #6b7684; margin-right: 7px; font-family: ui-monospace, monospace; font-size: 11px; }
+.feed-row.agent_status_changed { color: #d8e6d9; }
+.feed-row.agent_appeared { color: #9fd0ff; }
+.feed-row.agent_left { color: #f0b48a; }
+.feed-row.source_disconnected { color: #ff8b82; }
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ───── 하단 바 ───── */
+.hud-bottom {
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+.hud-bottom .hint { color: #7f8c9c; }
+
+/* ───── 툴팁 ───── */
+.tooltip {
+  position: fixed;
+  z-index: 8;
+  min-width: 210px;
+  max-width: 320px;
+  padding: 9px 12px;
+  border-radius: 11px;
+  background: rgba(9, 12, 16, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.14s, transform 0.14s;
+}
+.tooltip.show { opacity: 1; transform: none; }
+.tip-head { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13px; }
+.tip-head i { width: 9px; height: 9px; border-radius: 50%; }
+.tip-kind {
+  margin-left: auto;
+  font-weight: 500;
+  font-size: 11px;
+  color: #8d9aab;
+  font-family: ui-monospace, monospace;
+}
+.tip-title { margin-top: 4px; color: #dbe4ee; font-size: 12px; }
+.tip-meta { margin-top: 3px; color: #7f8c9c; font-size: 11px; }
+.tip-hint { margin-top: 5px; color: #5f6b78; font-size: 11px; }
+
+/* ───── 토스트 / 로딩 ───── */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 68px;
+  transform: translate(-50%, 12px);
+  z-index: 9;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(63, 211, 95, 0.16);
+  border: 1px solid rgba(63, 211, 95, 0.4);
+  color: #d8ffdf;
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.bad {
+  background: rgba(255, 83, 71, 0.16);
+  border-color: rgba(255, 83, 71, 0.45);
+  color: #ffd7d3;
+}
+
+.loading {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: #0d1014;
+  color: #7f8c9c;
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  transition: opacity 0.5s;
+}
+.loading.gone { opacity: 0; pointer-events: none; }
+
+@media (max-width: 720px) {
+  .hud-top { flex-wrap: wrap; gap: 7px 9px; }
+  .hud-feed { width: calc(100% - 24px); bottom: 98px; }
+  #feed { max-height: 18vh; }
+  .hud-bottom .hint { display: none; }
+  .toast { bottom: 54px; }
+}

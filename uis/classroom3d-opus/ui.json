@@ -1,0 +1,6 @@
+{
+  "title": "3D 교실 · 3학년 herdr반",
+  "description": "three.js 실사풍 3D 교실 — 교탁 앞 선생님 1인칭 시점. 필기(working)·엎드림(idle)·번쩍 손듦+스포트라이트(blocked)·양손 따봉(done)을 원근감과 그림자로 관전. 학생 클릭 = pane 점프.",
+  "emoji": "🏫",
+  "order": 11
+}
