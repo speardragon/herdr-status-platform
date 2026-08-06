@@ -1,0 +1,1937 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f0d9ad">
+<link rel="icon" href="data:,">
+<title>Herdr 교실 — 병렬 코딩반</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #29271f;
+    --paper: #fffaf0;
+    --wall: #f0d9ad;
+    --wall-deep: #dcbf8b;
+    --board: #28584b;
+    --board-dark: #173e35;
+    --chalk: #f7f2d0;
+    --wood: #a86535;
+    --wood-dark: #6f3e25;
+    --floor: #c68b54;
+    --line: #2e3028;
+    --working: #159b78;
+    --idle: #718199;
+    --blocked: #e53e32;
+    --blocked-hi: #ffd74a;
+    --done: #f59c24;
+    --unknown: #8e72bd;
+    --sans: "Arial Rounded MT Bold", "Trebuchet MS", ui-sans-serif, system-ui, sans-serif;
+    --hand: "Comic Sans MS", "Marker Felt", "Nanum Pen Script", cursive;
+    --mono: "SFMono-Regular", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { min-width: 320px; background: var(--floor); }
+  body {
+    min-height: 100vh;
+    margin: 0;
+    padding-bottom: 92px;
+    overflow-x: hidden;
+    background:
+      linear-gradient(90deg, rgba(83,45,24,.08) 1px, transparent 1px) 0 0 / 86px 100%,
+      linear-gradient(#d89f65, #b87442);
+    color: var(--ink);
+    font-family: var(--sans);
+  }
+
+  body::before {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      linear-gradient(74deg, transparent 48.8%, rgba(82,46,25,.2) 49%, transparent 49.3%) center top / 26% 100%,
+      linear-gradient(106deg, transparent 48.8%, rgba(82,46,25,.2) 49%, transparent 49.3%) center top / 26% 100%;
+    content: "";
+    opacity: .48;
+    pointer-events: none;
+  }
+
+  button, a { font: inherit; }
+  button { color: inherit; }
+  [hidden] { display: none !important; }
+
+  .room-shell { min-height: 100vh; }
+
+  .topbar {
+    position: relative;
+    z-index: 30;
+    min-height: 54px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 8px max(18px, calc((100vw - 1520px) / 2));
+    border-bottom: 3px solid #77472c;
+    background: #fff3d4;
+    box-shadow: 0 4px 0 rgba(89,52,31,.14);
+  }
+
+  .gallery-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 11px;
+    border: 2px solid #7d5437;
+    border-radius: 6px;
+    background: #fffaf0;
+    color: #6b432b;
+    font: 800 11px/1 var(--mono);
+    text-decoration: none;
+    box-shadow: 2px 2px 0 #b98055;
+    transition: transform .16s ease, box-shadow .16s ease;
+  }
+
+  .gallery-link:hover,
+  .gallery-link:focus-visible {
+    box-shadow: 1px 1px 0 #b98055;
+    transform: translate(1px, 1px);
+    outline: 3px solid rgba(21,155,120,.25);
+  }
+
+  .class-title {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .class-title span {
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: var(--blocked-hi);
+    font-size: 10px;
+    letter-spacing: .04em;
+  }
+
+  .connection-cluster {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #725641;
+    font: 800 10px/1 var(--mono);
+    text-transform: uppercase;
+  }
+
+  .connection-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 9px;
+    border: 1px solid #caa87a;
+    border-radius: 5px;
+    background: #f8e7c7;
+  }
+
+  .connection-dot {
+    width: 9px;
+    height: 9px;
+    border: 2px solid #fff7e3;
+    border-radius: 50%;
+    background: var(--blocked);
+    box-shadow: 0 0 0 1px var(--blocked);
+  }
+
+  .connection-dot.up {
+    background: var(--working);
+    box-shadow: 0 0 0 1px var(--working);
+  }
+
+  .back-wall {
+    position: relative;
+    min-height: 316px;
+    display: grid;
+    grid-template-columns: minmax(145px, .48fr) minmax(620px, 2.2fr) minmax(165px, .56fr);
+    align-items: center;
+    gap: clamp(14px, 2vw, 28px);
+    padding: 22px max(20px, calc((100vw - 1500px) / 2)) 28px;
+    overflow: hidden;
+    border-bottom: 12px solid #8c5a36;
+    background:
+      linear-gradient(rgba(255,255,255,.18) 1px, transparent 1px) 0 0 / 100% 42px,
+      linear-gradient(90deg, rgba(128,86,46,.08) 1px, transparent 1px) 0 0 / 58px 100%,
+      var(--wall);
+    box-shadow: inset 0 -8px 0 #c79967, 0 12px 24px rgba(71,40,21,.24);
+  }
+
+  .back-wall::before {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 16px;
+    border-bottom: 2px solid #e8c992;
+    background: #fff5dc;
+    content: "";
+  }
+
+  .window {
+    position: relative;
+    height: 214px;
+    overflow: hidden;
+    border: 9px solid #f7ead1;
+    outline: 3px solid #916344;
+    background: linear-gradient(#81cce9 0 63%, #aad37d 63% 75%, #6aa064 75%);
+    box-shadow: inset 0 0 0 2px #73472f, 6px 8px 0 rgba(102,61,33,.12);
+  }
+
+  .window::before,
+  .window::after {
+    position: absolute;
+    z-index: 3;
+    background: #f8ead0;
+    box-shadow: 0 0 0 2px #8a5b3d;
+    content: "";
+  }
+  .window::before { top: 0; bottom: 0; left: calc(50% - 4px); width: 8px; }
+  .window::after { top: calc(50% - 4px); right: 0; left: 0; height: 8px; }
+
+  .cloud {
+    position: absolute;
+    top: 33px;
+    left: 16%;
+    width: 58px;
+    height: 18px;
+    border-radius: 18px;
+    background: rgba(255,255,255,.9);
+    animation: cloud-float 11s ease-in-out infinite alternate;
+  }
+
+  .cloud::before,
+  .cloud::after {
+    position: absolute;
+    bottom: 4px;
+    border-radius: 50%;
+    background: inherit;
+    content: "";
+  }
+  .cloud::before { left: 10px; width: 27px; height: 27px; }
+  .cloud::after { right: 7px; width: 20px; height: 20px; }
+
+  .sun {
+    position: absolute;
+    top: 18px;
+    right: 14px;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: #ffd34e;
+    box-shadow: 0 0 0 8px rgba(255,211,78,.2);
+  }
+
+  .curtain {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 4;
+    width: 21px;
+    background: repeating-linear-gradient(90deg, #f19464 0 6px, #d7784c 6px 11px);
+  }
+  .curtain.left { left: 0; }
+  .curtain.right { right: 0; }
+
+  .board-frame {
+    position: relative;
+    padding: 10px;
+    border: 4px solid #704127;
+    border-radius: 3px;
+    background: #9c6137;
+    box-shadow: 8px 10px 0 rgba(90,51,28,.2), inset 0 0 0 2px #c98b55;
+    transform: rotate(-.15deg);
+  }
+
+  .class-board {
+    position: relative;
+    min-height: 235px;
+    padding: 16px 20px 18px;
+    overflow: hidden;
+    border: 2px solid #15372f;
+    border-radius: 2px;
+    background:
+      radial-gradient(circle at 17% 22%, rgba(255,255,255,.07), transparent 13%),
+      radial-gradient(circle at 76% 72%, rgba(255,255,255,.05), transparent 18%),
+      linear-gradient(110deg, transparent 48%, rgba(255,255,255,.025) 50%, transparent 52%),
+      var(--board);
+    color: var(--chalk);
+    box-shadow: inset 0 0 28px rgba(0,0,0,.24);
+  }
+
+  .board-heading {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: 12px;
+    margin-bottom: 13px;
+  }
+
+  .board-kicker {
+    margin: 0 0 2px;
+    color: #c9e8d3;
+    font: 700 11px/1 var(--hand);
+    letter-spacing: .14em;
+  }
+
+  .board-heading h1 {
+    margin: 0;
+    font: 900 clamp(26px, 3.2vw, 44px)/.95 var(--hand);
+    letter-spacing: .03em;
+    text-shadow: 1px 2px 0 rgba(0,0,0,.22);
+  }
+
+  .attendance-total {
+    padding: 8px 10px;
+    border: 2px dashed rgba(247,242,208,.5);
+    color: #fff7b5;
+    font: 800 10px/1.35 var(--mono);
+    text-align: right;
+    transform: rotate(1.2deg);
+  }
+
+  .attendance-total strong {
+    display: block;
+    font-size: 19px;
+  }
+
+  .board-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .board-stat {
+    --state: var(--chalk);
+    position: relative;
+    min-width: 0;
+    min-height: 70px;
+    padding: 8px 8px 7px 39px;
+    border: 1px solid color-mix(in srgb, var(--state), transparent 42%);
+    background: rgba(0,0,0,.11);
+    color: var(--state);
+  }
+
+  .board-stat::before {
+    position: absolute;
+    top: 10px;
+    left: 8px;
+    display: grid;
+    width: 24px;
+    height: 24px;
+    place-items: center;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    content: attr(data-icon);
+    font: 900 12px/1 var(--sans);
+  }
+
+  .board-stat span {
+    display: block;
+    overflow: hidden;
+    font: 800 9px/1.2 var(--mono);
+    letter-spacing: .03em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .board-stat strong {
+    display: block;
+    margin-top: 4px;
+    font: 900 24px/.9 var(--hand);
+  }
+
+  .board-stat.working { --state: #8df0c9; }
+  .board-stat.idle { --state: #c5d4ea; }
+  .board-stat.blocked { --state: #ffd74a; }
+  .board-stat.done { --state: #ffc67a; }
+  .board-stat.blocked.active {
+    border-width: 3px;
+    background: rgba(229,62,50,.36);
+    box-shadow: 0 0 0 2px var(--blocked-hi), 0 0 24px rgba(255,215,74,.4);
+    animation: board-question 1s ease-in-out infinite alternate;
+  }
+
+  .board-radio {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 24px;
+    margin-top: 11px;
+    padding-top: 9px;
+    border-top: 1px dashed rgba(247,242,208,.34);
+    color: #d8dfc7;
+    font: 700 10px/1.35 var(--mono);
+  }
+
+  .board-radio::before {
+    flex: 0 0 auto;
+    content: "교실 방송";
+    padding: 3px 6px;
+    background: var(--chalk);
+    color: var(--board-dark);
+    font-weight: 900;
+  }
+
+  .side-wall {
+    min-height: 225px;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 12px;
+  }
+
+  .wall-clock {
+    position: relative;
+    width: 86px;
+    height: 86px;
+    border: 7px solid #774a2e;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle, #65412d 0 4px, transparent 5px),
+      repeating-conic-gradient(from -1deg, #4f3b2e 0 2deg, transparent 2deg 30deg),
+      #fffaf0;
+    box-shadow: 4px 5px 0 rgba(91,53,31,.18);
+  }
+
+  .clock-hand {
+    position: absolute;
+    bottom: 50%;
+    left: calc(50% - 2px);
+    width: 4px;
+    border-radius: 4px;
+    background: #443328;
+    transform-origin: 50% 100%;
+  }
+  .clock-hand.hour { height: 23px; }
+  .clock-hand.minute { height: 30px; width: 3px; left: calc(50% - 1.5px); }
+  .clock-hand.second { height: 31px; width: 1px; left: calc(50% - .5px); background: var(--blocked); }
+
+  .motto {
+    width: min(148px, 100%);
+    padding: 10px 8px;
+    border: 3px double #d2503e;
+    background: #fffaf0;
+    color: #573d2e;
+    box-shadow: 3px 4px 0 rgba(99,58,33,.13);
+    font: 900 12px/1.45 var(--hand);
+    text-align: center;
+    transform: rotate(1.5deg);
+  }
+
+  .motto small {
+    display: block;
+    color: #b33f34;
+    font: 800 8px/1 var(--mono);
+    letter-spacing: .12em;
+  }
+
+  .question-alert {
+    position: relative;
+    z-index: 15;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 13px;
+    min-height: 52px;
+    margin: -3px auto 0;
+    padding: 9px max(18px, calc((100vw - 1460px) / 2));
+    border-top: 3px solid #8f251e;
+    border-bottom: 3px solid #8f251e;
+    background: repeating-linear-gradient(120deg, #ffd74a 0 18px, #ffca32 18px 36px);
+    color: #3a1e13;
+    box-shadow: 0 5px 0 rgba(89,45,25,.18);
+  }
+
+  .question-alert strong {
+    font: 900 clamp(16px, 2vw, 22px)/1 var(--hand);
+  }
+
+  .question-names {
+    min-width: 0;
+    overflow: hidden;
+    font: 800 10px/1.35 var(--mono);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .question-count {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border: 3px solid #3a1e13;
+    border-radius: 50%;
+    background: #fff3bc;
+    font: 900 17px/1 var(--mono);
+  }
+
+  .floor-zone {
+    position: relative;
+    min-height: 650px;
+    overflow: clip;
+    padding: 29px max(20px, calc((100vw - 1500px) / 2)) 145px;
+    background:
+      linear-gradient(90deg, transparent 49.7%, rgba(90,49,27,.12) 49.8% 50.2%, transparent 50.3%) center / 21% 100%,
+      repeating-linear-gradient(0deg, rgba(77,42,23,.1) 0 2px, transparent 2px 92px);
+  }
+
+  .floor-zone::before,
+  .floor-zone::after {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 38%;
+    content: "";
+    pointer-events: none;
+  }
+  .floor-zone::before {
+    left: -15%;
+    border-right: 2px solid rgba(91,50,28,.16);
+    transform: skewX(20deg);
+  }
+  .floor-zone::after {
+    right: -15%;
+    border-left: 2px solid rgba(91,50,28,.16);
+    transform: skewX(-20deg);
+  }
+
+  .classroom-layout {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 310px;
+    gap: 22px;
+    align-items: start;
+  }
+
+  .seat-section { min-width: 0; }
+  .seating-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 24px;
+    padding: 10px 13px;
+    border: 2px solid #754529;
+    border-radius: 6px;
+    background: rgba(255,247,222,.9);
+    box-shadow: 4px 5px 0 rgba(104,57,30,.18);
+  }
+
+  .seating-header h2 {
+    margin: 0 0 3px;
+    font: 900 22px/1 var(--hand);
+  }
+
+  .seating-header p {
+    margin: 0;
+    color: #785b43;
+    font-size: 10px;
+  }
+
+  .focus-readout {
+    max-width: 48%;
+    overflow: hidden;
+    color: #68513e;
+    font: 800 9px/1.4 var(--mono);
+    text-align: right;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .focus-readout strong { display: block; color: var(--working); font-size: 11px; }
+
+  .student-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(215px, 1fr));
+    gap: 42px 17px;
+    perspective: 1300px;
+  }
+
+  .student-card {
+    --status: var(--unknown);
+    --skin: #e7ad78;
+    --hair: #3e2c22;
+    --shirt: #6c8fc3;
+    position: relative;
+    display: block;
+    min-width: 0;
+    height: 310px;
+    padding: 0;
+    overflow: visible;
+    border: 3px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    appearance: none;
+    transform-style: preserve-3d;
+    transition: transform .18s ease, background .18s ease, border-color .18s ease, filter .18s ease;
+  }
+
+  .student-card:hover,
+  .student-card:focus-visible {
+    z-index: 8;
+    border-color: var(--status);
+    background: rgba(255,250,228,.43);
+    filter: drop-shadow(0 10px 8px rgba(67,37,20,.2));
+    transform: translateY(-5px) rotateX(1deg);
+    outline: none;
+  }
+
+  .student-card.is-focused {
+    border-color: #2f9fd5;
+    background: rgba(218,245,255,.38);
+    box-shadow: 0 0 0 4px rgba(47,159,213,.22);
+  }
+
+  .student-card.is-focusing { opacity: .65; }
+  .status-working { --status: var(--working); }
+  .status-idle { --status: var(--idle); }
+  .status-blocked { --status: var(--blocked); }
+  .status-done { --status: var(--done); }
+  .status-unknown { --status: var(--unknown); }
+
+  .status-blocked {
+    z-index: 5;
+    border-color: var(--blocked);
+    background:
+      radial-gradient(ellipse at 50% 28%, rgba(255,243,142,.9), rgba(255,215,74,.32) 43%, transparent 70%);
+    box-shadow: 0 0 0 5px rgba(255,215,74,.58), 0 0 30px rgba(229,62,50,.38);
+    animation: blocked-seat 1s ease-in-out infinite alternate;
+  }
+
+  .status-blocked::before {
+    position: absolute;
+    inset: -22px -16px 22px;
+    z-index: -1;
+    background: linear-gradient(105deg, transparent 24%, rgba(255,244,133,.55) 50%, transparent 76%);
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    content: "";
+    animation: spotlight 1.2s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+
+  .student-scene {
+    position: absolute;
+    inset: 0 0 32px;
+  }
+
+  .student {
+    position: absolute;
+    top: 41px;
+    left: 50%;
+    z-index: 3;
+    width: 126px;
+    height: 165px;
+    transform: translateX(-50%);
+  }
+
+  .head {
+    position: absolute;
+    top: 0;
+    left: 35px;
+    z-index: 5;
+    width: 57px;
+    height: 63px;
+    border: 3px solid var(--line);
+    border-radius: 46% 46% 43% 43%;
+    background: var(--skin);
+    box-shadow: inset -5px -4px 0 rgba(116,65,37,.09);
+    transition: transform .42s cubic-bezier(.2,.8,.2,1), top .42s ease;
+  }
+
+  .head::before {
+    position: absolute;
+    top: -4px;
+    right: -3px;
+    left: -3px;
+    height: 26px;
+    border: 3px solid var(--line);
+    border-bottom: 0;
+    border-radius: 50% 50% 24% 22%;
+    background:
+      linear-gradient(145deg, transparent 48%, rgba(255,255,255,.07) 50% 58%, transparent 60%),
+      var(--hair);
+    content: "";
+    clip-path: polygon(0 0, 100% 0, 100% 73%, 82% 62%, 73% 100%, 57% 67%, 43% 98%, 25% 63%, 0 77%);
+  }
+
+  .eyes::before,
+  .eyes::after {
+    position: absolute;
+    top: 34px;
+    width: 5px;
+    height: 7px;
+    border-radius: 50%;
+    background: #2b251f;
+    content: "";
+  }
+  .eyes::before { left: 14px; }
+  .eyes::after { right: 14px; }
+
+  .mouth {
+    position: absolute;
+    bottom: 8px;
+    left: calc(50% - 7px);
+    width: 14px;
+    height: 7px;
+    border-bottom: 2px solid #6d362d;
+    border-radius: 50%;
+  }
+
+  .body {
+    position: absolute;
+    top: 55px;
+    left: 24px;
+    z-index: 2;
+    width: 78px;
+    height: 96px;
+    border: 3px solid var(--line);
+    border-radius: 25px 25px 7px 7px;
+    background:
+      linear-gradient(90deg, transparent 47%, rgba(255,255,255,.38) 48% 52%, transparent 53%),
+      var(--shirt);
+    box-shadow: inset -8px 0 rgba(30,39,54,.1);
+  }
+
+  .body::before {
+    position: absolute;
+    top: -3px;
+    left: 23px;
+    width: 26px;
+    height: 18px;
+    border: 3px solid var(--line);
+    border-top: 0;
+    background: #fff4dd;
+    clip-path: polygon(0 0, 50% 100%, 100% 0);
+    content: "";
+  }
+
+  .arm {
+    position: absolute;
+    top: 82px;
+    z-index: 4;
+    width: 18px;
+    height: 73px;
+    border: 3px solid var(--line);
+    border-radius: 11px;
+    background: var(--skin);
+    transform-origin: 50% 9px;
+    transition: transform .42s cubic-bezier(.2,.8,.2,1), opacity .25s ease;
+  }
+  .arm::after {
+    position: absolute;
+    right: -4px;
+    bottom: -5px;
+    width: 20px;
+    height: 18px;
+    border: 3px solid var(--line);
+    border-radius: 50%;
+    background: var(--skin);
+    content: "";
+  }
+  .arm-left { left: 19px; transform: rotate(38deg); }
+  .arm-right { right: 19px; transform: rotate(-38deg); }
+
+  .raised-arm {
+    position: absolute;
+    top: -44px;
+    right: 13px;
+    z-index: 7;
+    width: 20px;
+    height: 132px;
+    border: 3px solid var(--line);
+    border-radius: 13px;
+    background: var(--skin);
+    opacity: 0;
+    transform: rotate(7deg) translateY(20px);
+    transform-origin: 50% 100%;
+  }
+
+  .raised-arm::before {
+    position: absolute;
+    top: -24px;
+    left: -6px;
+    width: 27px;
+    height: 30px;
+    border: 3px solid var(--line);
+    border-radius: 47% 47% 44% 44%;
+    background: var(--skin);
+    content: "";
+  }
+
+  .raised-arm::after {
+    position: absolute;
+    top: -38px;
+    left: -3px;
+    width: 5px;
+    height: 22px;
+    border: 2px solid var(--line);
+    border-radius: 5px;
+    background: var(--skin);
+    box-shadow:
+      6px -2px 0 -2px var(--line), 6px -2px 0 0 var(--skin),
+      12px 0 0 -2px var(--line), 12px 0 0 0 var(--skin),
+      18px 4px 0 -2px var(--line), 18px 4px 0 0 var(--skin);
+    content: "";
+  }
+
+  .pencil {
+    position: absolute;
+    top: 123px;
+    right: 19px;
+    z-index: 8;
+    width: 5px;
+    height: 42px;
+    border: 1px solid #80551d;
+    background: linear-gradient(#ef5b57 0 10%, #f4c43e 10% 88%, #3e3227 88%);
+    opacity: 0;
+    transform: rotate(36deg);
+  }
+
+  .zzz {
+    position: absolute;
+    top: 71px;
+    right: 11%;
+    z-index: 7;
+    color: #5a6680;
+    font: 900 20px/1 var(--hand);
+    opacity: 0;
+    text-shadow: 1px 1px #fff;
+  }
+
+  .thumbs {
+    position: absolute;
+    top: 78px;
+    left: 50%;
+    z-index: 8;
+    display: flex;
+    width: 156px;
+    justify-content: space-between;
+    font-size: 34px;
+    opacity: 0;
+    transform: translateX(-50%);
+    filter: drop-shadow(0 2px 0 #2e3028);
+    pointer-events: none;
+  }
+
+  .question-bubble {
+    position: absolute;
+    top: -7px;
+    right: -5px;
+    z-index: 11;
+    max-width: 142px;
+    padding: 8px 10px;
+    border: 3px solid #3a281f;
+    border-radius: 14px 14px 14px 3px;
+    background: var(--blocked-hi);
+    color: #3a2117;
+    font: 900 12px/1.25 var(--hand);
+    box-shadow: 4px 5px 0 rgba(80,42,24,.22);
+    opacity: 0;
+    transform: translateY(8px) rotate(2deg) scale(.8);
+  }
+
+  .question-bubble::after {
+    position: absolute;
+    bottom: -12px;
+    left: 11px;
+    width: 17px;
+    height: 17px;
+    border-right: 3px solid #3a281f;
+    border-bottom: 3px solid #3a281f;
+    background: var(--blocked-hi);
+    content: "";
+    transform: rotate(45deg);
+  }
+
+  .desk-top {
+    position: absolute;
+    top: 170px;
+    right: 4%;
+    left: 4%;
+    z-index: 5;
+    height: 70px;
+    border: 3px solid var(--line);
+    background:
+      linear-gradient(90deg, rgba(255,255,255,.13), transparent 30%),
+      var(--wood);
+    clip-path: polygon(6% 0, 94% 0, 100% 100%, 0 100%);
+    box-shadow: inset 0 -8px rgba(84,43,22,.14);
+  }
+
+  .desk-top::after {
+    position: absolute;
+    top: 5px;
+    right: 12px;
+    width: 38px;
+    height: 4px;
+    border: 1px solid #a83f32;
+    border-radius: 3px;
+    background: #f1ce45;
+    content: "";
+    transform: rotate(-8deg);
+  }
+
+  .notebook {
+    position: absolute;
+    top: 179px;
+    left: 18%;
+    z-index: 7;
+    width: 64%;
+    min-height: 51px;
+    display: grid;
+    align-content: center;
+    padding: 6px 7px 5px 16px;
+    overflow: hidden;
+    border: 2px solid #665644;
+    border-radius: 2px;
+    background:
+      linear-gradient(90deg, #e95f5b 0 5px, transparent 5px),
+      repeating-linear-gradient(0deg, transparent 0 12px, #b6d5df 12px 13px),
+      #fffdf1;
+    color: #303832;
+    box-shadow: 2px 3px 0 rgba(58,37,25,.2);
+    transform: rotate(-1deg) perspective(160px) rotateX(5deg);
+  }
+
+  .notebook small {
+    display: block;
+    color: #94785c;
+    font: 800 7px/1 var(--mono);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+
+  .notebook-title {
+    display: -webkit-box;
+    margin-top: 3px;
+    overflow: hidden;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1.22;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .desk-front {
+    position: absolute;
+    top: 229px;
+    right: 9%;
+    left: 9%;
+    z-index: 6;
+    height: 55px;
+    border: 3px solid var(--line);
+    border-top: 0;
+    background:
+      linear-gradient(90deg, transparent, rgba(255,255,255,.09), transparent),
+      var(--wood-dark);
+    box-shadow: 7px 10px 0 rgba(69,38,22,.15);
+  }
+
+  .desk-front::before,
+  .desk-front::after {
+    position: absolute;
+    top: 50px;
+    width: 9px;
+    height: 22px;
+    border: 2px solid var(--line);
+    border-top: 0;
+    background: #714027;
+    content: "";
+  }
+  .desk-front::before { left: 12px; transform: rotate(3deg); }
+  .desk-front::after { right: 12px; transform: rotate(-3deg); }
+
+  .nameplate {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 7px;
+    border: 2px solid #5b402e;
+    border-radius: 3px;
+    background: #fff1c2;
+    box-shadow: inset 0 0 0 1px #d9bc76;
+  }
+
+  .student-name {
+    min-width: 0;
+    overflow: hidden;
+    font: 900 11px/1 var(--sans);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .status-label {
+    padding: 3px 5px;
+    border-radius: 9px;
+    background: var(--status);
+    color: #fff;
+    font: 900 7px/1 var(--mono);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .status-blocked .status-label { background: var(--blocked); }
+  .status-done .status-label { color: #3d270d; }
+
+  .student-meta {
+    position: absolute;
+    right: 9%;
+    bottom: 0;
+    left: 9%;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    color: #674b38;
+    font: 800 8px/1.25 var(--mono);
+  }
+
+  .student-meta span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .student-meta .camera-tag {
+    flex: 0 0 auto;
+    padding: 3px 5px;
+    border-radius: 8px;
+    background: #2f9fd5;
+    color: #fff;
+  }
+
+  .status-working .pencil { opacity: 1; animation: pencil-write .52s ease-in-out infinite alternate; }
+  .status-working .head { animation: study-nod 1.4s ease-in-out infinite alternate; }
+
+  .status-idle .head {
+    top: 86px;
+    transform: rotate(-8deg);
+    animation: sleepy-breathe 2.4s ease-in-out infinite alternate;
+  }
+  .status-idle .eyes::before,
+  .status-idle .eyes::after { top: 36px; width: 11px; height: 2px; border-radius: 0; }
+  .status-idle .eyes::before { left: 8px; transform: rotate(6deg); }
+  .status-idle .eyes::after { right: 8px; transform: rotate(-6deg); }
+  .status-idle .mouth { display: none; }
+  .status-idle .arm-left { transform: rotate(76deg) translate(5px, -3px); }
+  .status-idle .arm-right { transform: rotate(-76deg) translate(-5px, -3px); }
+  .status-idle .zzz { opacity: 1; animation: zzz-float 1.8s ease-out infinite; }
+
+  .status-blocked .arm-right { opacity: 0; }
+  .status-blocked .raised-arm { opacity: 1; animation: hand-wave .72s ease-in-out infinite alternate; }
+  .status-blocked .question-bubble { opacity: 1; transform: translateY(0) rotate(2deg) scale(1); animation: bubble-pop 1.1s ease-in-out infinite alternate; }
+  .status-blocked .eyes::before,
+  .status-blocked .eyes::after { width: 8px; height: 10px; top: 31px; background: #fff; border: 3px solid #2b251f; }
+  .status-blocked .eyes::before { left: 9px; }
+  .status-blocked .eyes::after { right: 9px; }
+  .status-blocked .mouth { bottom: 5px; left: calc(50% - 5px); width: 10px; height: 11px; border: 2px solid #6d362d; border-radius: 50%; }
+
+  .status-done .arm { opacity: 0; }
+  .status-done .thumbs { opacity: 1; animation: thumbs-up .8s ease-in-out infinite alternate; }
+  .status-done .head { animation: happy-bounce .8s ease-in-out infinite alternate; }
+  .status-done .mouth { bottom: 5px; height: 11px; border: 0; border-bottom: 3px solid #6d362d; }
+
+  .student-card.just-transitioned { animation: student-change 1.1s ease-out; }
+  .student-card.just-transitioned.status-blocked { animation: blocked-change 1.35s ease-out; }
+
+  .empty-class {
+    grid-column: 1 / -1;
+    min-height: 320px;
+    display: grid;
+    place-items: center;
+    padding: 34px;
+    border: 3px dashed rgba(102,63,37,.42);
+    border-radius: 14px;
+    background: rgba(255,248,222,.48);
+    color: #78583f;
+    text-align: center;
+  }
+
+  .empty-class strong {
+    display: block;
+    margin-bottom: 7px;
+    color: #4c3628;
+    font: 900 28px/1 var(--hand);
+  }
+
+  .journal {
+    position: sticky;
+    top: 12px;
+    min-width: 0;
+    border: 8px solid #765035;
+    border-radius: 5px;
+    background: #bd7c4b;
+    box-shadow: 8px 10px 0 rgba(74,40,22,.2);
+    transform: rotate(.25deg);
+  }
+
+  .journal-paper {
+    min-height: 480px;
+    padding: 20px 13px 13px;
+    background:
+      linear-gradient(90deg, transparent 0 31px, rgba(229,84,78,.28) 31px 33px, transparent 33px),
+      repeating-linear-gradient(0deg, #fffdf1 0 26px, #bfd8e0 26px 27px);
+  }
+
+  .journal-clip {
+    position: absolute;
+    top: -18px;
+    left: calc(50% - 47px);
+    width: 94px;
+    height: 35px;
+    border: 3px solid #4e4b43;
+    border-radius: 7px 7px 3px 3px;
+    background: linear-gradient(#d9d8cb, #9d9c92);
+    box-shadow: inset 0 -6px rgba(0,0,0,.12);
+  }
+
+  .journal-header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 9px;
+    margin: 7px 0 13px 24px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #5c4a3d;
+  }
+
+  .journal-header h2 {
+    margin: 0;
+    font: 900 24px/1 var(--hand);
+  }
+
+  .journal-header span {
+    color: #8c6d55;
+    font: 800 8px/1.3 var(--mono);
+    text-align: right;
+  }
+
+  .event-feed {
+    max-height: 642px;
+    overflow-y: auto;
+    scrollbar-color: #b18763 transparent;
+    scrollbar-width: thin;
+  }
+
+  .class-event {
+    --event: #8c735e;
+    position: relative;
+    display: grid;
+    width: 100%;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 7px;
+    padding: 8px 5px 9px 25px;
+    border: 0;
+    border-bottom: 1px dashed rgba(84,64,48,.28);
+    background: transparent;
+    text-align: left;
+  }
+
+  .class-event::before {
+    position: absolute;
+    top: 13px;
+    left: 9px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--event);
+    content: "";
+  }
+
+  button.class-event { cursor: pointer; }
+  button.class-event:hover,
+  button.class-event:focus-visible {
+    background: rgba(255,215,74,.21);
+    outline: 2px solid var(--event);
+    outline-offset: -2px;
+  }
+
+  .class-event.working { --event: var(--working); }
+  .class-event.idle { --event: var(--idle); }
+  .class-event.blocked { --event: var(--blocked); background: rgba(229,62,50,.09); }
+  .class-event.done { --event: var(--done); }
+  .class-event.join { --event: #2f9fd5; }
+  .class-event.leave { --event: #a45142; }
+
+  .event-time {
+    color: #9b8069;
+    font: 800 8px/1.25 var(--mono);
+  }
+
+  .event-type {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--event);
+    font: 900 8px/1 var(--mono);
+    letter-spacing: .04em;
+  }
+
+  .event-copy {
+    display: -webkit-box;
+    overflow: hidden;
+    color: #604b3b;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .feed-empty {
+    padding: 46px 24px;
+    color: #9b8069;
+    font: 800 10px/1.5 var(--mono);
+    text-align: center;
+  }
+
+  .teacher-desk {
+    position: fixed;
+    right: 50%;
+    bottom: -42px;
+    z-index: 24;
+    width: min(790px, 72vw);
+    height: 122px;
+    border: 4px solid #3f2a1e;
+    background:
+      linear-gradient(100deg, rgba(255,255,255,.16), transparent 25%),
+      repeating-linear-gradient(0deg, transparent 0 18px, rgba(81,39,18,.09) 18px 20px),
+      #8e542f;
+    box-shadow: 0 -9px 18px rgba(67,36,20,.24), inset 0 10px #b87643;
+    clip-path: polygon(7% 0, 93% 0, 100% 100%, 0 100%);
+    transform: translateX(50%);
+    pointer-events: none;
+  }
+
+  .teacher-book {
+    position: absolute;
+    top: -29px;
+    left: 24%;
+    width: 47%;
+    height: 61px;
+    border: 3px solid #473b31;
+    border-radius: 4px;
+    background:
+      linear-gradient(90deg, transparent 49%, #a98b72 49% 51%, transparent 51%),
+      repeating-linear-gradient(0deg, #fffdf2 0 14px, #c4dce3 14px 15px);
+    box-shadow: 4px 7px 0 rgba(64,34,19,.25);
+    transform: perspective(190px) rotateX(12deg) rotate(-1deg);
+  }
+
+  .teacher-book::before {
+    position: absolute;
+    top: 9px;
+    left: calc(50% - 70px);
+    color: #6e5a49;
+    font: 900 9px/1 var(--hand);
+    content: "선생님 관찰 기록";
+  }
+
+  .teacher-mug {
+    position: absolute;
+    top: -32px;
+    right: 18%;
+    width: 48px;
+    height: 52px;
+    border: 4px solid #433127;
+    border-radius: 5px 5px 14px 14px;
+    background: #f2c55c;
+    box-shadow: inset 0 7px #6f3b26, 4px 5px 0 rgba(58,32,20,.2);
+  }
+
+  .teacher-mug::after {
+    position: absolute;
+    top: 10px;
+    right: -19px;
+    width: 18px;
+    height: 22px;
+    border: 4px solid #433127;
+    border-left: 0;
+    border-radius: 0 13px 13px 0;
+    content: "";
+  }
+
+  .chalk-box {
+    position: absolute;
+    top: -13px;
+    left: 11%;
+    width: 89px;
+    height: 27px;
+    border: 3px solid #47372b;
+    background: #dfc39a;
+    box-shadow: 2px 3px 0 rgba(62,35,21,.22);
+  }
+
+  .chalk-box::before {
+    position: absolute;
+    top: 6px;
+    left: 9px;
+    width: 47px;
+    height: 6px;
+    border-radius: 5px;
+    background: #fffce8;
+    box-shadow: 12px 7px #e97066, 29px 1px #76c9df;
+    content: "";
+  }
+
+  .transition-pop {
+    position: fixed;
+    top: 74px;
+    left: 50%;
+    z-index: 90;
+    width: min(540px, calc(100vw - 28px));
+    padding: 18px 22px;
+    border: 4px solid var(--unknown);
+    border-radius: 12px;
+    background: #fffaf0;
+    box-shadow: 8px 10px 0 rgba(61,37,25,.34);
+    opacity: 0;
+    transform: translate(-50%, -34px) rotate(-2deg) scale(.86);
+    pointer-events: none;
+  }
+
+  .transition-pop.show { animation: announcement-pop 1.38s cubic-bezier(.16,.8,.2,1) both; }
+  .transition-pop[data-status="working"] { border-color: var(--working); }
+  .transition-pop[data-status="idle"] { border-color: var(--idle); }
+  .transition-pop[data-status="blocked"] {
+    border-width: 6px;
+    border-color: var(--blocked);
+    background: var(--blocked-hi);
+    box-shadow: 0 0 0 7px rgba(229,62,50,.27), 9px 12px 0 rgba(61,37,25,.36);
+  }
+  .transition-pop[data-status="blocked"].show { animation-duration: 1.75s; }
+  .transition-pop[data-status="done"] { border-color: var(--done); background: #fff2b8; }
+
+  .transition-grid {
+    display: grid;
+    grid-template-columns: 54px minmax(0, 1fr);
+    align-items: center;
+    gap: 13px;
+  }
+
+  .transition-icon {
+    display: grid;
+    width: 54px;
+    height: 54px;
+    place-items: center;
+    border: 3px solid currentColor;
+    border-radius: 50%;
+    background: #fffdf5;
+    font-size: 27px;
+  }
+
+  .transition-kicker {
+    margin: 0 0 3px;
+    color: #8c7059;
+    font: 900 8px/1 var(--mono);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+
+  .transition-name {
+    margin: 0;
+    overflow: hidden;
+    font: 900 25px/1 var(--hand);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .transition-route {
+    margin: 8px 0 0;
+    font: 900 10px/1.35 var(--mono);
+  }
+
+  .transition-route b { color: var(--blocked); }
+  .transition-detail {
+    margin: 7px 0 0 67px;
+    overflow: hidden;
+    color: #705846;
+    font-size: 10px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .toast {
+    position: fixed;
+    right: 20px;
+    bottom: 104px;
+    z-index: 100;
+    max-width: min(410px, calc(100vw - 40px));
+    padding: 12px 14px;
+    border: 3px solid var(--working);
+    border-radius: 7px;
+    background: #fffaf0;
+    box-shadow: 5px 6px 0 rgba(59,34,21,.27);
+    color: #4b382b;
+    font: 850 10px/1.4 var(--mono);
+    opacity: 0;
+    transform: translateY(12px);
+    pointer-events: none;
+    transition: opacity .18s ease, transform .18s ease;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.warn { border-color: var(--done); }
+  .toast.error { border-color: var(--blocked); }
+
+  @keyframes cloud-float { to { transform: translateX(22px); } }
+  @keyframes board-question { to { transform: scale(1.025) rotate(-.5deg); } }
+  @keyframes blocked-seat { to { box-shadow: 0 0 0 8px rgba(255,215,74,.7), 0 0 38px rgba(229,62,50,.5); } }
+  @keyframes spotlight { to { opacity: .5; transform: translateX(5px); } }
+  @keyframes pencil-write { to { transform: translate(5px, 2px) rotate(28deg); } }
+  @keyframes study-nod { to { transform: translateY(3px) rotate(2deg); } }
+  @keyframes sleepy-breathe { to { transform: translateY(2px) rotate(-6deg); } }
+  @keyframes zzz-float { from { transform: translate(0,8px) scale(.7); opacity: 0; } 35% { opacity: 1; } to { transform: translate(12px,-12px) scale(1.1); opacity: 0; } }
+  @keyframes hand-wave { to { transform: rotate(-5deg) translateY(-4px); } }
+  @keyframes bubble-pop { to { transform: translateY(-4px) rotate(-1deg) scale(1.04); } }
+  @keyframes thumbs-up { to { transform: translate(-50%, -7px) rotate(2deg) scale(1.08); } }
+  @keyframes happy-bounce { to { transform: translateY(-4px); } }
+  @keyframes student-change { 25% { transform: translateY(-12px) rotate(-1deg); filter: drop-shadow(0 0 13px var(--status)); } }
+  @keyframes blocked-change { 18%, 52% { transform: translateX(7px) rotate(1deg); } 35%, 70% { transform: translateX(-7px) rotate(-1deg); } }
+  @keyframes announcement-pop {
+    0% { opacity: 0; transform: translate(-50%,-38px) rotate(-3deg) scale(.84); }
+    13%, 78% { opacity: 1; transform: translate(-50%,0) rotate(-1deg) scale(1); }
+    100% { opacity: 0; transform: translate(-50%,-9px) rotate(2deg) scale(.96); }
+  }
+
+  @media (max-width: 1180px) {
+    .back-wall { grid-template-columns: 130px minmax(560px, 1fr) 140px; }
+    .classroom-layout { grid-template-columns: 1fr; }
+    .journal { position: relative; top: auto; width: min(720px, 100%); margin: 28px auto 0; transform: none; }
+    .journal-paper { min-height: 320px; }
+    .event-feed { max-height: 330px; }
+  }
+
+  @media (max-width: 930px) {
+    .back-wall { grid-template-columns: 1fr; padding-inline: 16px; }
+    .window, .side-wall { display: none; }
+    .board-frame { width: min(760px, 100%); margin: 0 auto; }
+    .student-grid { grid-template-columns: repeat(2, minmax(220px, 1fr)); }
+  }
+
+  @media (max-width: 650px) {
+    body { padding-bottom: 60px; }
+    .topbar { grid-template-columns: auto 1fr; gap: 9px; padding: 7px 10px; }
+    .gallery-link { width: 38px; justify-content: center; padding: 8px; font-size: 0; }
+    .gallery-link::before { content: "←"; font-size: 16px; }
+    .class-title { text-align: left; font-size: 12px; }
+    .class-title span { display: none; }
+    .connection-cluster { grid-column: 1 / -1; justify-content: stretch; }
+    .connection-badge { flex: 1; justify-content: center; }
+    .back-wall { min-height: 350px; padding-top: 18px; }
+    .class-board { padding: 14px 12px; }
+    .board-heading { grid-template-columns: 1fr; }
+    .attendance-total { position: absolute; top: 14px; right: 12px; padding: 5px 7px; }
+    .attendance-total strong { font-size: 15px; }
+    .board-heading h1 { max-width: 70%; font-size: 29px; }
+    .board-stats { grid-template-columns: repeat(2, 1fr); }
+    .board-stat { min-height: 56px; padding-top: 7px; }
+    .board-stat strong { font-size: 19px; }
+    .board-radio { font-size: 8px; }
+    .question-alert { grid-template-columns: 1fr auto; gap: 6px; padding: 8px 12px; }
+    .question-alert strong { font-size: 16px; }
+    .question-names { grid-column: 1 / -1; grid-row: 2; }
+    .question-count { grid-column: 2; grid-row: 1; }
+    .floor-zone { padding: 19px 9px 104px; }
+    .seating-header { margin-inline: 2px; }
+    .seating-header p { display: none; }
+    .focus-readout { max-width: 52%; }
+    .student-grid { grid-template-columns: 1fr; gap: 31px; }
+    .student-card { width: min(390px, 100%); margin: 0 auto; }
+    .journal { width: calc(100% - 6px); }
+    .teacher-desk { bottom: -37px; width: 94vw; height: 83px; }
+    .teacher-book { top: -20px; height: 44px; }
+    .teacher-mug { top: -24px; right: 13%; width: 38px; height: 41px; }
+    .chalk-box { display: none; }
+    .transition-pop { top: 94px; padding: 14px; }
+    .transition-grid { grid-template-columns: 43px minmax(0,1fr); gap: 10px; }
+    .transition-icon { width: 43px; height: 43px; font-size: 21px; }
+    .transition-name { font-size: 21px; }
+    .transition-detail { margin-left: 53px; }
+    .toast { right: 12px; bottom: 69px; max-width: calc(100vw - 24px); }
+  }
+
+  @media (max-width: 390px) {
+    .board-stat { padding-left: 32px; }
+    .board-stat::before { left: 5px; width: 20px; height: 20px; }
+    .student-card { transform: scale(.96); transform-origin: top center; margin-bottom: -10px; }
+    .student-card:hover, .student-card:focus-visible { transform: scale(.96) translateY(-4px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      scroll-behavior: auto !important;
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+    .transition-pop.show { opacity: 1; transform: translate(-50%, 0); }
+  }
+</style>
+</head>
+<body>
+  <div class="room-shell">
+    <header class="topbar">
+      <a class="gallery-link" href="/" aria-label="UI 갤러리로 돌아가기">← 교실 밖</a>
+      <div class="class-title">HERDR 초등학교 · 병렬 코딩반 <span>선생님 관찰 모드</span></div>
+      <div class="connection-cluster" aria-label="교실 연결 상태">
+        <span class="connection-badge"><i class="connection-dot" id="transportDot"></i><b id="transportLabel">연결 중</b></span>
+        <span class="connection-badge" id="sourceLabel">출석 확인 중</span>
+      </div>
+    </header>
+
+    <section class="back-wall" aria-labelledby="classroomTitle">
+      <div class="window" aria-hidden="true">
+        <span class="sun"></span><span class="cloud"></span>
+        <span class="curtain left"></span><span class="curtain right"></span>
+      </div>
+
+      <div class="board-frame">
+        <div class="class-board">
+          <div class="board-heading">
+            <div>
+              <p class="board-kicker">오늘의 수업 · LIVE CLASS</p>
+              <h1 id="classroomTitle">병렬 코딩 관찰일</h1>
+            </div>
+            <div class="attendance-total">출석<strong id="totalCount">0명</strong><span id="seqLabel">SEQ —</span></div>
+          </div>
+          <div class="board-stats" aria-label="학생 상태 현황">
+            <div class="board-stat working" data-stat="working" data-icon="✎"><span>WORKING · 공부 중</span><strong id="workingCount">0</strong></div>
+            <div class="board-stat idle" data-stat="idle" data-icon="Z"><span>IDLE · 엎드림</span><strong id="idleCount">0</strong></div>
+            <div class="board-stat blocked" data-stat="blocked" data-icon="✋"><span>BLOCKED · 질문</span><strong id="blockedCount">0</strong></div>
+            <div class="board-stat done" data-stat="done" data-icon="👍"><span>DONE · 따봉</span><strong id="doneCount">0</strong></div>
+          </div>
+          <div class="board-radio" id="latestAnnouncement">수업 시작을 준비하고 있어요.</div>
+        </div>
+      </div>
+
+      <div class="side-wall" aria-hidden="true">
+        <div class="wall-clock">
+          <i class="clock-hand hour" id="clockHour"></i>
+          <i class="clock-hand minute" id="clockMinute"></i>
+          <i class="clock-hand second" id="clockSecond"></i>
+        </div>
+        <div class="motto"><small>우리 반 급훈</small>질문은 크게!<br>완료는 따봉!</div>
+      </div>
+    </section>
+
+    <div class="question-alert" id="questionAlert" role="alert" hidden>
+      <strong>✋ 선생님, 질문 있어요!</strong>
+      <span class="question-names" id="questionNames"></span>
+      <span class="question-count" id="questionCount">0</span>
+    </div>
+
+    <main class="floor-zone">
+      <div class="classroom-layout">
+        <section class="seat-section" aria-labelledby="seatingTitle">
+          <header class="seating-header">
+            <div><h2 id="seatingTitle">우리 반 자리표</h2><p>학생을 누르면 해당 herdr pane으로 시선이 이동합니다.</p></div>
+            <div class="focus-readout">선생님 시선<strong id="focusStudent">아직 선택 없음</strong></div>
+          </header>
+          <div class="student-grid" id="studentGrid" aria-live="polite">
+            <div class="empty-class"><div><strong>출석 확인 중</strong>학생들이 교실로 들어오고 있어요.</div></div>
+          </div>
+        </section>
+
+        <aside class="journal" aria-labelledby="journalTitle">
+          <span class="journal-clip" aria-hidden="true"></span>
+          <div class="journal-paper">
+            <header class="journal-header"><h2 id="journalTitle">교실 일지</h2><span>RECENT EVENTS<br>RING BUFFER</span></header>
+            <div class="event-feed" id="eventFeed"><div class="feed-empty">첫 번째 교실 기록을 기다리는 중…</div></div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <div class="teacher-desk" aria-hidden="true">
+    <span class="chalk-box"></span><span class="teacher-book"></span><span class="teacher-mug"></span>
+  </div>
+
+  <div class="transition-pop" id="transitionPop" aria-live="assertive" aria-atomic="true">
+    <div class="transition-grid">
+      <span class="transition-icon" id="transitionIcon">✎</span>
+      <div>
+        <p class="transition-kicker" id="transitionKicker">자세가 바뀌었어요</p>
+        <h2 class="transition-name" id="transitionName">학생</h2>
+        <p class="transition-route"><span id="transitionFrom">IDLE</span> → <b id="transitionTo">WORKING</b></p>
+      </div>
+    </div>
+    <p class="transition-detail" id="transitionDetail"></p>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+import { connect } from '/sdk.js';
+
+const STATUS = {
+  working: { label: 'WORKING', pose: '공부 중', icon: '✎', transition: '공부 시작!' },
+  idle: { label: 'IDLE', pose: '엎드림', icon: 'Z', transition: '잠깐 쉬는 중…' },
+  blocked: { label: 'BLOCKED', pose: '질문!', icon: '✋', transition: '손 번쩍! 질문 있어요' },
+  done: { label: 'DONE', pose: '따봉!', icon: '👍👍', transition: '양손 따봉! 완료했어요' },
+  unknown: { label: 'UNKNOWN', pose: '확인 중', icon: '?', transition: '자리 상태 확인 중' },
+};
+const STATUS_ORDER = { blocked: 0, working: 1, idle: 2, done: 3, unknown: 4 };
+const SKINS = ['#f0c49a', '#e7ad78', '#bd7a52', '#8c553d', '#d99468'];
+const HAIRS = ['#2e2521', '#553723', '#85542e', '#1d2730', '#6e382b'];
+const SHIRTS = ['#5c83bd', '#dd6b5e', '#569b7e', '#9675bd', '#e5a73c', '#4d9aa7'];
+const MAX_EVENTS = 28;
+const $ = (id) => document.getElementById(id);
+const client = connect();
+
+let lastSnapshot = null;
+let previousStats = null;
+let feedInitialized = false;
+let eventLog = [];
+let toastTimer = null;
+let transitionTimer = null;
+let transitionActive = false;
+const transitionQueue = [];
+
+const create = (tag, className, text) => {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+};
+
+const hash = (value) => {
+  let result = 11;
+  for (const char of String(value)) result = (result * 33 + char.codePointAt(0)) >>> 0;
+  return result;
+};
+
+const studentName = (agent) => agent.name || `${agent.kind}-${String((hash(agent.paneId) % 90) + 10)}`;
+
+const formatElapsed = (iso) => {
+  const start = new Date(iso).getTime();
+  if (!Number.isFinite(start)) return '--';
+  const seconds = Math.max(0, Math.floor((Date.now() - start) / 1000));
+  if (seconds < 60) return `${seconds}초`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}분`;
+  return `${Math.floor(seconds / 3600)}시간`;
+};
+
+const formatTime = (iso) => {
+  const date = new Date(iso);
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+    : '--:--';
+};
+
+function renderStats(snapshot) {
+  const { stats } = snapshot;
+  $('workingCount').textContent = stats.working;
+  $('idleCount').textContent = stats.idle;
+  $('blockedCount').textContent = stats.blocked;
+  $('doneCount').textContent = stats.done;
+  $('totalCount').textContent = `${stats.total}명`;
+  $('seqLabel').textContent = `SEQ ${snapshot.seq}`;
+
+  for (const status of ['working', 'idle', 'blocked', 'done']) {
+    const card = document.querySelector(`[data-stat="${status}"]`);
+    card?.classList.toggle('active', status === 'blocked' && stats.blocked > 0);
+    if (previousStats && previousStats[status] !== stats[status]) {
+      card?.animate(
+        [{ transform: 'scale(1)' }, { transform: 'scale(1.09) rotate(-1deg)' }, { transform: 'scale(1)' }],
+        { duration: 430, easing: 'ease-out' },
+      );
+    }
+  }
+
+  const blockers = snapshot.agents.filter((agent) => agent.status === 'blocked');
+  $('questionAlert').hidden = blockers.length === 0;
+  $('questionCount').textContent = blockers.length;
+  $('questionNames').textContent = blockers.map((agent) => `${studentName(agent)} — ${agent.title || '작업 내용 없음'}`).join('  /  ');
+  previousStats = { ...stats };
+}
+
+function buildStudent(agent, workspaceById) {
+  const state = STATUS[agent.status] || STATUS.unknown;
+  const palette = hash(agent.paneId);
+  const card = create('button', `student-card status-${agent.status}`);
+  card.type = 'button';
+  card.dataset.focusPane = agent.paneId;
+  card.dataset.paneId = agent.paneId;
+  card.style.setProperty('--skin', SKINS[palette % SKINS.length]);
+  card.style.setProperty('--hair', HAIRS[(palette >>> 3) % HAIRS.length]);
+  card.style.setProperty('--shirt', SHIRTS[(palette >>> 6) % SHIRTS.length]);
+  card.setAttribute('aria-label', `${studentName(agent)}, ${state.label} ${state.pose}, ${agent.title || '작업 내용 없음'} — pane으로 이동`);
+  if (agent.focused) card.classList.add('is-focused');
+
+  const scene = create('span', 'student-scene');
+  scene.setAttribute('aria-hidden', 'true');
+  scene.append(create('span', 'question-bubble', '선생님! 질문 있어요'));
+
+  const person = create('span', 'student');
+  const head = create('span', 'head');
+  head.append(create('i', 'eyes'), create('i', 'mouth'));
+  person.append(head, create('span', 'body'), create('span', 'arm arm-left'), create('span', 'arm arm-right'));
+  person.append(create('span', 'raised-arm'), create('span', 'pencil'));
+  scene.append(person);
+  scene.append(create('span', 'zzz', 'Z z z'));
+  const thumbs = create('span', 'thumbs');
+  thumbs.append(create('i', '', '👍'), create('i', '', '👍'));
+  scene.append(thumbs);
+  scene.append(create('span', 'desk-top'));
+
+  const notebook = create('span', 'notebook');
+  notebook.append(create('small', '', '지금 하는 과제'));
+  notebook.append(create('span', 'notebook-title', agent.title || '작업 내용 없음'));
+  scene.append(notebook);
+
+  const front = create('span', 'desk-front');
+  const plate = create('span', 'nameplate');
+  plate.append(create('strong', 'student-name', studentName(agent)));
+  plate.append(create('span', 'status-label', `${state.icon} ${state.pose}`));
+  front.append(plate);
+  scene.append(front);
+  card.append(scene);
+
+  const meta = create('span', 'student-meta');
+  meta.append(create('span', '', `${agent.kind} · ${agent.paneId}`));
+  meta.append(create('span', '', '·'));
+  const workspace = create('span', '', workspaceById.get(agent.workspaceId)?.label || agent.workspaceId);
+  meta.append(workspace);
+  meta.append(create('span', '', '·'));
+  const elapsed = create('span', '', formatElapsed(agent.statusSince));
+  elapsed.dataset.since = agent.statusSince;
+  meta.append(elapsed);
+  if (agent.focused) meta.append(create('span', 'camera-tag', '선생님 시선'));
+  card.append(meta);
+  return card;
+}
+
+function renderStudents(snapshot) {
+  const grid = $('studentGrid');
+  const workspaceById = new Map(snapshot.workspaces.map((workspace) => [workspace.workspaceId, workspace]));
+  const students = [...snapshot.agents].sort((a, b) => {
+    const stateDelta = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+    if (stateDelta) return stateDelta;
+    if (a.focused !== b.focused) return a.focused ? -1 : 1;
+    return studentName(a).localeCompare(studentName(b));
+  });
+  grid.replaceChildren();
+
+  if (students.length === 0) {
+    const empty = create('div', 'empty-class');
+    const copy = create('div');
+    copy.append(create('strong', '', snapshot.connected ? '오늘은 자율학습' : '출석 확인 중'));
+    copy.append(document.createTextNode(snapshot.connected ? '현재 교실에서 감지된 학생 에이전트가 없습니다.' : '마지막 교실 상태를 기다리고 있어요.'));
+    empty.append(copy);
+    grid.append(empty);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (const student of students) fragment.append(buildStudent(student, workspaceById));
+  grid.append(fragment);
+}
+
+function renderFocus(snapshot) {
+  const focused = snapshot.agents.find((agent) => agent.paneId === snapshot.focus.paneId);
+  $('focusStudent').textContent = focused ? `${studentName(focused)} · ${focused.paneId}` : '아직 선택 없음';
+}
+
+const eventKey = (event) => `${event.seq}:${event.type}`;
+
+function eventView(event) {
+  const current = lastSnapshot?.agents.find((agent) => 'paneId' in event && agent.paneId === event.paneId);
+  const name = 'name' in event && event.name ? event.name : current ? studentName(current) : ('paneId' in event ? event.paneId : '교실');
+  switch (event.type) {
+    case 'agent_status_changed': return { type: `${event.from} → ${event.to}`, copy: `${name}: ${event.title || '작업 내용 없음'}`, tone: event.to, paneId: event.paneId };
+    case 'agent_appeared': return { type: '새 학생 출석', copy: `${name} · ${event.status}`, tone: 'join', paneId: event.paneId };
+    case 'agent_left': return { type: '학생 하교', copy: `${name} · ${event.paneId}`, tone: 'leave' };
+    case 'agent_title_changed': return { type: '공책 내용 변경', copy: `${name}: ${event.title}`, tone: 'working', paneId: event.paneId };
+    case 'pane_opened': return { type: '새 자리 준비', copy: event.paneId, tone: 'join', paneId: event.paneId };
+    case 'pane_closed': return { type: '자리 정리', copy: event.paneId, tone: 'leave' };
+    case 'workspace_opened': return { type: '새 반 개방', copy: event.label, tone: 'join' };
+    case 'workspace_closed': return { type: '반 수업 종료', copy: event.label, tone: 'leave' };
+    case 'focus_changed': return { type: '선생님 시선 이동', copy: event.focus.paneId || '교실 전체', tone: 'join', paneId: event.focus.paneId || undefined };
+    case 'source_connected': return { type: '수업 방송 연결', copy: 'herdr 교실이 연결되었습니다.', tone: 'working' };
+    case 'source_disconnected': return { type: '수업 방송 끊김', copy: '마지막 출석 상태를 유지합니다.', tone: 'blocked' };
+    default: return { type: event.type, copy: `기록 #${event.seq}`, tone: '' };
+  }
+}
+
+function renderFeed() {
+  const feed = $('eventFeed');
+  feed.replaceChildren();
+  if (eventLog.length === 0) {
+    feed.append(create('div', 'feed-empty', '첫 번째 교실 기록을 기다리는 중…'));
+    return;
+  }
+
+  for (const event of [...eventLog].reverse()) {
+    const view = eventView(event);
+    const canFocus = view.paneId && lastSnapshot?.agents.some((agent) => agent.paneId === view.paneId);
+    const row = create(canFocus ? 'button' : 'div', `class-event ${view.tone}`.trim());
+    if (canFocus) {
+      row.type = 'button';
+      row.dataset.focusPane = view.paneId;
+      row.setAttribute('aria-label', `${view.copy} — 학생 pane으로 이동`);
+    }
+    row.append(create('span', 'event-time', formatTime(event.ts)));
+    const copy = create('span');
+    copy.append(create('b', 'event-type', view.type));
+    copy.append(create('span', 'event-copy', view.copy));
+    row.append(copy);
+    feed.append(row);
+  }
+}
+
+function ingestEvents(events) {
+  const known = new Set(eventLog.map(eventKey));
+  let changed = false;
+  for (const event of events) {
+    if (known.has(eventKey(event))) continue;
+    eventLog.push(event);
+    known.add(eventKey(event));
+    changed = true;
+  }
+  eventLog = eventLog.sort((a, b) => a.seq - b.seq).slice(-MAX_EVENTS);
+  if (changed) {
+    const latest = eventLog.at(-1);
+    if (latest) $('latestAnnouncement').textContent = eventView(latest).copy;
+    renderFeed();
+  }
+}
+
+function render(snapshot) {
+  lastSnapshot = snapshot;
+  $('sourceLabel').textContent = `${snapshot.source} 수업 · ${snapshot.connected ? '출석 연결' : '연결 끊김'}`;
+  renderStats(snapshot);
+  renderStudents(snapshot);
+  renderFocus(snapshot);
+  renderFeed();
+}
+
+function enqueueTransition(event) {
+  if (!transitionActive) {
+    transitionQueue.push(event);
+    runNextTransition();
+    return;
+  }
+  if (event.to === 'blocked' || transitionQueue.length === 0) transitionQueue.splice(0, transitionQueue.length, event);
+  else if (transitionQueue[0]?.to !== 'blocked') transitionQueue[0] = event;
+}
+
+function runNextTransition() {
+  const event = transitionQueue.shift();
+  if (!event) {
+    transitionActive = false;
+    return;
+  }
+  transitionActive = true;
+  const state = STATUS[event.to] || STATUS.unknown;
+  const previous = STATUS[event.from] || STATUS.unknown;
+  const current = lastSnapshot?.agents.find((agent) => agent.paneId === event.paneId);
+  const name = event.name || (current ? studentName(current) : event.kind);
+  const pop = $('transitionPop');
+  pop.dataset.status = event.to;
+  $('transitionIcon').textContent = state.icon;
+  $('transitionKicker').textContent = state.transition;
+  $('transitionName').textContent = name;
+  $('transitionFrom').textContent = `${previous.label} · ${previous.pose}`;
+  $('transitionTo').textContent = `${state.label} · ${state.pose}`;
+  $('transitionDetail').textContent = event.title || '작업 내용 없음';
+  pop.classList.remove('show');
+  void pop.offsetWidth;
+  pop.classList.add('show');
+
+  const seat = [...document.querySelectorAll('.student-card')].find((card) => card.dataset.paneId === event.paneId);
+  if (seat) {
+    seat.classList.remove('just-transitioned');
+    void seat.offsetWidth;
+    seat.classList.add('just-transitioned');
+  }
+
+  clearTimeout(transitionTimer);
+  transitionTimer = setTimeout(() => {
+    pop.classList.remove('show');
+    setTimeout(() => {
+      transitionActive = false;
+      runNextTransition();
+    }, 130);
+  }, event.to === 'blocked' ? 1750 : 1380);
+}
+
+function showToast(message, tone = '') {
+  const toast = $('toast');
+  toast.textContent = message;
+  toast.className = `toast ${tone} show`.trim();
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.className = 'toast'; }, 2400);
+}
+
+async function focusPane(paneId, trigger) {
+  if (!paneId) return;
+  trigger?.classList.add('is-focusing');
+  const ok = await client.focusPane(paneId);
+  trigger?.classList.remove('is-focusing');
+  if (ok) showToast(`선생님 시선 이동 완료 · ${paneId}`);
+  else if (lastSnapshot?.source === 'mock') showToast(`모의 수업 · ${paneId} (실제 pane 이동은 live 수업에서 가능해요)`, 'warn');
+  else showToast(`pane 이동 실패 · ${paneId}`, 'error');
+}
+
+function updateClock() {
+  const now = new Date();
+  const seconds = now.getSeconds();
+  const minutes = now.getMinutes() + seconds / 60;
+  const hours = (now.getHours() % 12) + minutes / 60;
+  $('clockSecond').style.transform = `rotate(${seconds * 6}deg)`;
+  $('clockMinute').style.transform = `rotate(${minutes * 6}deg)`;
+  $('clockHour').style.transform = `rotate(${hours * 30}deg)`;
+  document.querySelectorAll('[data-since]').forEach((node) => { node.textContent = formatElapsed(node.dataset.since); });
+}
+
+client.onTransport((up) => {
+  $('transportDot').classList.toggle('up', up);
+  $('transportLabel').textContent = up ? '교실 방송 ON' : '교실 방송 OFF';
+});
+
+client.onUpdate(({ snapshot, events }) => {
+  if (!feedInitialized) {
+    eventLog = [...snapshot.recentEvents].slice(-MAX_EVENTS);
+    const latest = eventLog.at(-1);
+    if (latest) $('latestAnnouncement').textContent = eventView(latest).copy;
+    feedInitialized = true;
+  }
+  render(snapshot);
+  ingestEvents(events);
+});
+
+client.onEvent('agent_status_changed', (event) => enqueueTransition(event));
+
+document.addEventListener('click', (event) => {
+  const trigger = event.target instanceof Element ? event.target.closest('[data-focus-pane]') : null;
+  if (trigger) focusPane(trigger.dataset.focusPane, trigger);
+});
+
+updateClock();
+setInterval(updateClock, 1000);
+</script>
+</body>
+</html>
