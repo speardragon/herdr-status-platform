@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090a13">
+  <title>Pixel Panic — herdr status</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕹️</text></svg>">
+  <style>
+    :root {
+      --void: #06070d;
+      --night: #0b1020;
+      --panel: #111a2c;
+      --panel-deep: #090f1c;
+      --line: #324765;
+      --line-hot: #799fca;
+      --paper: #e8f4ff;
+      --muted: #8ba1bd;
+      --cyan: #50e5ff;
+      --lime: #9cff55;
+      --yellow: #ffdd57;
+      --red: #ff455c;
+      --pink: #ff72bc;
+      --purple: #b588ff;
+      --orange: #ff9e57;
+      --pixel: 4px;
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { min-height: 100%; background: var(--void); }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 15% 5%, rgba(80, 229, 255, .12), transparent 26rem),
+        radial-gradient(circle at 90% 28%, rgba(181, 136, 255, .13), transparent 30rem),
+        linear-gradient(180deg, #101a32 0, var(--void) 36rem);
+      color: var(--paper);
+      font: 13px/1.42 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      letter-spacing: .025em;
+    }
+
+    body::before,
+    body::after {
+      position: fixed;
+      z-index: 40;
+      inset: 0;
+      content: "";
+      pointer-events: none;
+    }
+
+    body::before {
+      opacity: .18;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, .035) 0,
+        rgba(255, 255, 255, .035) 1px,
+        transparent 1px,
+        transparent 4px
+      );
+      mix-blend-mode: screen;
+    }
+
+    body::after {
+      box-shadow: inset 0 0 11vw rgba(0, 0, 0, .72);
+    }
+
+    button { font: inherit; }
+
+    .arcade {
+      position: relative;
+      width: min(1560px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 18px 0 48px;
+    }
+
+    .arcade::before {
+      position: absolute;
+      z-index: -1;
+      top: 78px;
+      right: 0;
+      width: 240px;
+      height: 240px;
+      content: "";
+      opacity: .45;
+      background-image: radial-gradient(var(--cyan) 1px, transparent 1.5px);
+      background-size: 18px 18px;
+      mask-image: radial-gradient(circle, #000, transparent 68%);
+    }
+
+    .frame {
+      border: 2px solid var(--line);
+      box-shadow:
+        0 0 0 3px #05070d,
+        0 0 0 5px rgba(80, 229, 255, .15),
+        0 16px 45px rgba(0, 0, 0, .35);
+    }
+
+    .marquee {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      min-height: 74px;
+      padding: 11px 16px;
+      overflow: hidden;
+      border-color: #55779f;
+      background:
+        linear-gradient(90deg, rgba(80, 229, 255, .10), transparent 35%, rgba(181, 136, 255, .13)),
+        var(--panel-deep);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      color: var(--cyan);
+      text-decoration: none;
+    }
+
+    .brand:hover { color: #fff; }
+
+    .brand-mark {
+      display: grid;
+      width: 39px;
+      height: 39px;
+      place-items: center;
+      border: 2px solid currentColor;
+      color: var(--yellow);
+      background: #172541;
+      box-shadow: 4px 4px 0 #070a11;
+      font-size: 21px;
+      line-height: 1;
+    }
+
+    .brand-copy { display: grid; gap: 1px; }
+    .brand-copy strong { color: var(--paper); font-size: 11px; letter-spacing: .14em; }
+    .brand-copy span { color: var(--muted); font-size: 9px; letter-spacing: .1em; }
+
+    .marquee-center { min-width: 0; }
+
+    .marquee-title {
+      margin: 0;
+      overflow: hidden;
+      color: #fff;
+      font-size: clamp(20px, 3.2vw, 36px);
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: .09em;
+      text-overflow: ellipsis;
+      text-shadow: 3px 3px 0 #253f68, 6px 6px 0 rgba(255, 69, 92, .28);
+      white-space: nowrap;
+    }
+
+    .marquee-subtitle {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: .11em;
+    }
+
+    .ticker-arrow { color: var(--yellow); animation: ticker-blink 1s steps(2, start) infinite; }
+
+    .connection {
+      display: grid;
+      gap: 4px;
+      min-width: 135px;
+      padding: 8px 11px;
+      border: 1px solid #31506f;
+      background: rgba(0, 0, 0, .3);
+      color: var(--muted);
+      font-size: 9px;
+      letter-spacing: .08em;
+      text-align: right;
+    }
+
+    .connection-main {
+      display: flex;
+      justify-content: flex-end;
+      gap: 7px;
+      align-items: center;
+      color: var(--paper);
+      font-weight: 800;
+    }
+
+    .signal-dot {
+      width: 9px;
+      height: 9px;
+      background: #4a5a70;
+      box-shadow: 0 0 0 2px #0a111d;
+    }
+
+    .connection.is-up .signal-dot {
+      background: var(--lime);
+      box-shadow: 0 0 11px var(--lime), 0 0 0 2px #0a111d;
+      animation: dot-pulse 1.2s steps(2, start) infinite;
+    }
+
+    .connection.is-down .signal-dot { background: var(--red); box-shadow: 0 0 10px var(--red); }
+    .connection.is-down .connection-main { color: var(--red); }
+
+    .scoreboard {
+      display: grid;
+      grid-template-columns: minmax(190px, 1.18fr) repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 13px;
+    }
+
+    .score-card {
+      position: relative;
+      min-height: 78px;
+      padding: 10px 12px;
+      overflow: hidden;
+      border: 1px solid #314863;
+      background: linear-gradient(135deg, rgba(255, 255, 255, .055), transparent 60%), #0d1627;
+    }
+
+    .score-card::after {
+      position: absolute;
+      right: -9px;
+      bottom: -16px;
+      color: currentColor;
+      font-size: 61px;
+      font-weight: 900;
+      line-height: 1;
+      opacity: .12;
+    }
+
+    .score-card p { margin: 0; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .12em; }
+    .score-card b { display: block; margin-top: 4px; color: currentColor; font-size: 30px; line-height: 1; }
+    .score-card span { position: relative; z-index: 1; color: #b8c9da; font-size: 10px; }
+    .score-total { color: var(--cyan); }
+    .score-total::after { content: "★"; }
+    .score-working { color: var(--lime); }
+    .score-working::after { content: "▶"; }
+    .score-idle { color: var(--cyan); }
+    .score-idle::after { content: "Z"; }
+    .score-blocked { color: var(--red); border-color: rgba(255, 69, 92, .8); }
+    .score-blocked::after { content: "!"; color: var(--red); }
+    .score-blocked.has-danger { animation: score-alarm .86s steps(2, start) infinite; }
+    .score-done { color: var(--yellow); }
+    .score-done::after { content: "✓"; }
+
+    .horizon {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(285px, 360px);
+      gap: 14px;
+      margin-top: 14px;
+      align-items: start;
+    }
+
+    .arena,
+    .side-panel,
+    .world-panel {
+      background: linear-gradient(145deg, rgba(255, 255, 255, .035), transparent 38%), var(--panel-deep);
+    }
+
+    .arena { min-width: 0; }
+
+    .panel-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      min-height: 46px;
+      padding: 8px 12px;
+      border-bottom: 1px solid #2d425d;
+      background: rgba(80, 229, 255, .045);
+    }
+
+    .eyebrow { margin: 0 0 3px; color: var(--cyan); font-size: 9px; font-weight: 800; letter-spacing: .14em; }
+    .panel-heading h2 { margin: 0; color: var(--paper); font-size: 13px; letter-spacing: .08em; }
+    .panel-note { max-width: 43%; color: var(--muted); font-size: 9px; line-height: 1.35; text-align: right; }
+
+    .game-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px 15px;
+      align-items: center;
+      min-height: 35px;
+      padding: 7px 12px;
+      border-bottom: 1px solid #20334c;
+      color: #a9bfd6;
+      font-size: 10px;
+    }
+
+    .game-strip b { color: var(--yellow); }
+    .game-strip .strip-separator { width: 1px; height: 12px; background: #35506e; }
+    .help-key { padding: 1px 4px; border: 1px solid #3a5877; color: var(--paper); background: #121d31; }
+
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .agent-card {
+      --state: var(--purple);
+      --state-soft: rgba(181, 136, 255, .18);
+      position: relative;
+      display: grid;
+      grid-template-columns: 59px minmax(0, 1fr) 30px;
+      gap: 9px;
+      min-height: 126px;
+      padding: 10px 8px 10px 10px;
+      overflow: hidden;
+      border: 1px solid #314965;
+      border-radius: 0;
+      color: var(--paper);
+      cursor: pointer;
+      text-align: left;
+      background:
+        linear-gradient(90deg, var(--state-soft), transparent 56%),
+        repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(255, 255, 255, .017) 4px),
+        #0c1525;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .025), 4px 4px 0 rgba(0, 0, 0, .26);
+      transition: transform .14s steps(2, end), border-color .14s steps(2, end), box-shadow .14s steps(2, end);
+    }
+
+    .agent-card:hover {
+      z-index: 2;
+      border-color: var(--state);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), 0 0 18px var(--state-soft), 5px 5px 0 rgba(0, 0, 0, .35);
+      transform: translate(-2px, -2px);
+    }
+
+    .agent-card:focus-visible { z-index: 3; outline: 3px solid #fff; outline-offset: 3px; }
+    .agent-card.is-focused { border-color: #fff; box-shadow: inset 0 0 0 1px var(--cyan), 0 0 20px rgba(80, 229, 255, .25); }
+    .agent-card.is-focused .focus-mark { display: grid; }
+
+    .agent-card[data-status="working"] { --state: var(--lime); --state-soft: rgba(156, 255, 85, .17); }
+    .agent-card[data-status="idle"] { --state: var(--cyan); --state-soft: rgba(80, 229, 255, .16); }
+    .agent-card[data-status="blocked"] { --state: var(--red); --state-soft: rgba(255, 69, 92, .25); border: 2px solid var(--red); animation: blocked-breathe 1s steps(2, start) infinite; }
+    .agent-card[data-status="done"] { --state: var(--yellow); --state-soft: rgba(255, 221, 87, .16); }
+    .agent-card[data-status="unknown"] { --state: var(--purple); --state-soft: rgba(181, 136, 255, .17); }
+
+    .agent-card[data-status="blocked"] .agent-status { color: #fff; background: var(--red); }
+    .agent-card[data-status="blocked"] .cabinet-screen { border-color: var(--red); box-shadow: inset 0 0 16px rgba(255, 69, 92, .33); }
+    .agent-card[data-status="blocked"] .pilot { animation: pilot-jitter .28s steps(2, start) infinite; }
+
+    .card-rivets { position: absolute; inset: 3px; pointer-events: none; }
+    .card-rivets::before,
+    .card-rivets::after { position: absolute; content: ""; width: 3px; height: 3px; background: #65809e; }
+    .card-rivets::before { top: 0; left: 0; box-shadow: 0 116px #65809e; }
+    .card-rivets::after { top: 0; right: 0; box-shadow: 0 116px #65809e; }
+
+    .cabinet {
+      display: grid;
+      gap: 4px;
+      align-content: start;
+      width: 59px;
+    }
+
+    .cabinet-label {
+      overflow: hidden;
+      color: var(--state);
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: .07em;
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cabinet-screen {
+      position: relative;
+      display: grid;
+      width: 59px;
+      height: 62px;
+      place-items: center;
+      overflow: hidden;
+      border: 3px solid #334b69;
+      background:
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, .075) 0 1px, transparent 1px 4px),
+        #06101d;
+    }
+
+    .cabinet-screen::before,
+    .cabinet-screen::after { position: absolute; content: ""; background: var(--state); }
+    .cabinet-screen::before { top: 4px; right: 5px; width: 4px; height: 4px; box-shadow: 0 7px var(--state); }
+    .cabinet-screen::after { right: 6px; bottom: 3px; width: 13px; height: 2px; opacity: .65; }
+
+    .pilot {
+      position: relative;
+      width: 29px;
+      height: 35px;
+      filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, .58));
+    }
+
+    .pilot-head { position: absolute; top: 0; left: 7px; width: 16px; height: 12px; background: var(--state); }
+    .pilot-head::before { position: absolute; top: 3px; left: 4px; width: 3px; height: 3px; content: ""; background: #06101d; box-shadow: 6px 0 #06101d; }
+    .pilot-body { position: absolute; top: 13px; left: 4px; width: 22px; height: 13px; background: var(--state); }
+    .pilot-body::before { position: absolute; top: 4px; left: 9px; width: 4px; height: 4px; content: ""; background: #13223a; }
+    .pilot-arm { position: absolute; top: 15px; width: 5px; height: 12px; background: var(--state); }
+    .pilot-arm.left { left: 0; }
+    .pilot-arm.right { right: 0; }
+    .pilot-leg { position: absolute; top: 27px; width: 7px; height: 8px; background: var(--state); }
+    .pilot-leg.left { left: 6px; }
+    .pilot-leg.right { right: 6px; }
+    .agent-card[data-status="working"] .pilot { animation: pilot-run .65s steps(2, start) infinite; }
+    .agent-card[data-status="idle"] .pilot { animation: pilot-idle 1.6s steps(2, start) infinite; }
+    .agent-card[data-status="done"] .pilot { animation: pilot-win .9s steps(2, start) infinite; }
+
+    .cabinet-controls { display: flex; justify-content: space-between; padding: 0 5px; }
+    .cabinet-controls i { width: 7px; height: 7px; border-radius: 50%; background: var(--state); box-shadow: 0 0 5px var(--state); }
+    .cabinet-controls i:last-child { width: 11px; height: 3px; border-radius: 0; background: #526c8b; box-shadow: none; }
+
+    .agent-copy { min-width: 0; padding-top: 2px; }
+    .agent-handle { overflow: hidden; color: #fff; font-size: 12px; font-weight: 900; letter-spacing: .04em; text-overflow: ellipsis; white-space: nowrap; }
+    .agent-kind { display: block; margin-top: 2px; overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+    .agent-status { display: inline-block; margin-top: 8px; padding: 2px 5px; color: #08110a; background: var(--state); font-size: 9px; font-weight: 900; letter-spacing: .08em; }
+    .agent-task { display: -webkit-box; margin: 8px 0 0; overflow: hidden; color: #c7d6e6; font-size: 10px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .agent-since { display: block; margin-top: 5px; color: var(--muted); font-size: 9px; }
+    .agent-card[data-status="blocked"] .agent-task { color: #ffe2e6; }
+
+    .warp-rail { display: grid; grid-template-rows: 1fr auto; justify-items: center; gap: 7px; padding-top: 3px; border-left: 1px dashed #314864; }
+    .warp-glyph { display: grid; width: 22px; height: 22px; place-items: center; border: 1px solid var(--state); color: var(--state); font-size: 14px; line-height: 1; }
+    .warp-text { color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .08em; writing-mode: vertical-rl; }
+    .focus-mark { position: absolute; right: 7px; bottom: 7px; display: none; width: 16px; height: 16px; place-items: center; color: #07121d; background: #fff; font-size: 10px; font-weight: 900; }
+
+    .agent-card.is-warping { pointer-events: none; animation: warp-out .62s steps(5, end) both; }
+    .agent-card.warp-ok { border-color: #fff; }
+    .agent-card.warp-fail { animation: warp-fail .4s steps(2, end); }
+    .agent-card.status-shift { z-index: 4; }
+    .agent-card.status-shift.to-working { animation: status-working .76s steps(4, end); }
+    .agent-card.status-shift.to-idle { animation: status-idle .72s steps(3, end); }
+    .agent-card.status-shift.to-blocked { animation: status-blocked .94s steps(4, end); }
+    .agent-card.status-shift.to-done { animation: status-done .86s steps(4, end); }
+
+    .empty-bay {
+      display: grid;
+      min-height: 270px;
+      place-items: center;
+      padding: 30px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty-bay b { display: block; margin-bottom: 6px; color: var(--cyan); font-size: 13px; }
+
+    .side-stack { display: grid; gap: 14px; }
+
+    .side-panel { overflow: hidden; }
+
+    .danger-panel { border-color: #6b3745; }
+    .danger-panel .panel-heading { background: rgba(255, 69, 92, .065); }
+    .danger-panel .eyebrow { color: var(--pink); }
+    .danger-panel.has-danger { border-color: var(--red); box-shadow: 0 0 26px rgba(255, 69, 92, .22), 0 0 0 3px #05070d; }
+    .danger-panel.has-danger .panel-heading { border-bottom-color: var(--red); }
+
+    .danger-count {
+      min-width: 35px;
+      padding: 3px 6px;
+      color: #fff;
+      background: #3b1720;
+      font-size: 12px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .danger-panel.has-danger .danger-count { background: var(--red); animation: score-alarm .86s steps(2, start) infinite; }
+
+    .danger-list { display: grid; gap: 7px; padding: 10px; }
+
+    .danger-empty {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      min-height: 62px;
+      color: #a7c4b0;
+      font-size: 10px;
+    }
+
+    .danger-empty .safe-shield { display: grid; width: 31px; height: 31px; place-items: center; border: 1px solid var(--lime); color: var(--lime); font-size: 17px; }
+
+    .danger-item {
+      display: grid;
+      grid-template-columns: 25px minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #933b4a;
+      color: #fff;
+      cursor: pointer;
+      text-align: left;
+      background: linear-gradient(90deg, rgba(255, 69, 92, .22), rgba(255, 69, 92, .04));
+    }
+
+    .danger-item:hover,
+    .danger-item:focus-visible { border-color: #fff; background: rgba(255, 69, 92, .34); outline: none; }
+    .danger-sign { display: grid; width: 25px; height: 25px; place-items: center; color: #fff; background: var(--red); font-size: 16px; font-weight: 900; }
+    .danger-name { overflow: hidden; font-size: 10px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+    .danger-title { display: block; overflow: hidden; margin-top: 2px; color: #ffcbd2; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+    .danger-warp { color: #fff; font-size: 9px; }
+
+    .event-feed { max-height: 333px; overflow: auto; padding: 0; scrollbar-color: #476486 #101a2d; }
+    .event-feed:empty::before { display: block; padding: 15px; color: var(--muted); content: "EVENT TAPE LOADING…"; font-size: 10px; }
+
+    .event-row {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 8px;
+      padding: 8px 10px;
+      border-bottom: 1px solid #20344e;
+      background: linear-gradient(90deg, var(--event-tone, rgba(80, 229, 255, .1)), transparent 72%);
+      animation: tape-in .34s steps(3, end);
+    }
+
+    .event-time { color: #7e9bb8; font-size: 9px; }
+    .event-copy { min-width: 0; color: #c5d7e8; font-size: 9px; line-height: 1.38; }
+    .event-type { display: inline-block; margin-right: 5px; padding: 1px 3px; color: var(--event-color, var(--cyan)); border: 1px solid currentColor; font-size: 8px; font-weight: 900; }
+    .event-row.status { --event-color: var(--lime); --event-tone: rgba(156, 255, 85, .11); }
+    .event-row.status.to-blocked { --event-color: var(--red); --event-tone: rgba(255, 69, 92, .18); }
+    .event-row.appeared, .event-row.focus { --event-color: var(--cyan); }
+    .event-row.left, .event-row.closed, .event-row.disconnected { --event-color: var(--orange); --event-tone: rgba(255, 158, 87, .1); }
+    .event-row.title { --event-color: var(--purple); --event-tone: rgba(181, 136, 255, .1); }
+
+    .mini-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; }
+    .legend-item { display: flex; gap: 7px; align-items: center; padding: 8px 10px; border-top: 1px solid #253a54; color: #a9bed4; font-size: 9px; }
+    .legend-dot { width: 9px; height: 9px; background: var(--legend); box-shadow: 0 0 7px var(--legend); }
+
+    .world-panel { margin-top: 14px; overflow: hidden; }
+
+    .world-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px; background: #273d59; }
+    .world-card { min-width: 0; padding: 10px 12px; background: #0b1424; }
+    .world-card.is-focused { background: linear-gradient(135deg, rgba(80, 229, 255, .15), transparent), #0b1424; }
+    .world-label { overflow: hidden; color: #e5f4ff; font-size: 11px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+    .world-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px; color: var(--muted); font-size: 9px; }
+    .world-state { color: var(--world-state, var(--purple)); }
+    .world-empty { padding: 17px; color: var(--muted); font-size: 10px; }
+
+    .bottom-status {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      padding: 13px 2px 0;
+      color: #718ba8;
+      font-size: 9px;
+    }
+
+    .bottom-status b { color: var(--cyan); }
+
+    .warp-toast {
+      position: fixed;
+      z-index: 50;
+      bottom: 18px;
+      left: 50%;
+      width: min(500px, calc(100% - 30px));
+      padding: 11px 15px;
+      border: 2px solid var(--cyan);
+      color: #eaffff;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 20px);
+      background: #081525;
+      box-shadow: 5px 5px 0 #02050a, 0 0 24px rgba(80, 229, 255, .34);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .05em;
+      text-align: center;
+      transition: opacity .15s steps(2, end), transform .15s steps(2, end);
+    }
+
+    .warp-toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .warp-toast.danger { border-color: var(--red); box-shadow: 5px 5px 0 #02050a, 0 0 24px rgba(255, 69, 92, .38); }
+    .warp-toast.good { border-color: var(--lime); box-shadow: 5px 5px 0 #02050a, 0 0 24px rgba(156, 255, 85, .38); }
+
+    .transition-banner {
+      position: fixed;
+      z-index: 45;
+      top: 12px;
+      left: 50%;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      width: min(540px, calc(100% - 30px));
+      padding: 9px 11px;
+      border: 2px solid var(--cyan);
+      color: #effdff;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -120px);
+      background: rgba(6, 14, 27, .96);
+      box-shadow: 5px 5px 0 #03050b;
+      transition: opacity .14s steps(2, end), transform .14s steps(2, end);
+    }
+
+    .transition-banner.show { opacity: 1; transform: translate(-50%, 0); }
+    .transition-banner.to-blocked { border-color: var(--red); box-shadow: 5px 5px 0 #03050b, 0 0 28px rgba(255, 69, 92, .52); }
+    .transition-banner.to-done { border-color: var(--yellow); }
+    .transition-banner.to-working { border-color: var(--lime); }
+    .transition-banner.to-idle { border-color: var(--cyan); }
+    .transition-icon { display: grid; width: 35px; height: 35px; place-items: center; color: #09111d; background: currentColor; font-size: 18px; font-weight: 900; }
+    .transition-banner.to-blocked .transition-icon { color: #fff; background: var(--red); }
+    .transition-banner.to-done .transition-icon { color: #352a00; background: var(--yellow); }
+    .transition-banner.to-working .transition-icon { color: #142208; background: var(--lime); }
+    .transition-banner.to-idle .transition-icon { color: #06212a; background: var(--cyan); }
+    .transition-copy { min-width: 0; }
+    .transition-kicker { color: var(--muted); font-size: 8px; font-weight: 900; letter-spacing: .13em; }
+    .transition-message { overflow: hidden; margin-top: 2px; font-size: 11px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+
+    #fx-layer { position: fixed; z-index: 46; inset: 0; overflow: hidden; pointer-events: none; }
+    .pixel-burst {
+      position: fixed;
+      width: 7px;
+      height: 7px;
+      background: var(--burst-color, var(--cyan));
+      box-shadow: 0 0 8px var(--burst-color, var(--cyan));
+      animation: pixel-burst .78s steps(8, end) forwards;
+    }
+
+    body.red-alert .marquee { animation: whole-alarm .78s steps(2, start) 2; }
+    body.red-alert::after { box-shadow: inset 0 0 11vw rgba(255, 24, 55, .4); }
+
+    @keyframes ticker-blink { 50% { opacity: .18; } }
+    @keyframes dot-pulse { 50% { opacity: .35; } }
+    @keyframes score-alarm { 50% { color: #fff; background-color: #8a1727; } }
+    @keyframes blocked-breathe { 50% { box-shadow: inset 0 0 0 1px #fff, 0 0 18px rgba(255, 69, 92, .55), 4px 4px 0 rgba(0, 0, 0, .26); } }
+    @keyframes pilot-run { 50% { transform: translateX(2px); } }
+    @keyframes pilot-idle { 50% { transform: translateY(2px); } }
+    @keyframes pilot-win { 50% { transform: translateY(-3px); } }
+    @keyframes pilot-jitter { 25% { transform: translate(-1px, 1px); } 75% { transform: translate(2px, -1px); } }
+    @keyframes warp-out { 40% { filter: brightness(2.5); transform: translateX(6px) skewX(-14deg); } 100% { opacity: .62; transform: translateX(-16px) skewX(17deg); } }
+    @keyframes warp-fail { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+    @keyframes status-working { 0% { transform: scale(.93); filter: brightness(2.3); } 35% { transform: scale(1.06); } 100% { transform: scale(1); filter: none; } }
+    @keyframes status-idle { 0% { filter: brightness(2.6); } 45% { transform: translateY(4px); } 100% { transform: translateY(0); filter: none; } }
+    @keyframes status-blocked { 0%, 100% { transform: translateX(0); } 15%, 45%, 75% { transform: translateX(-7px); filter: brightness(2.4); } 30%, 60%, 90% { transform: translateX(7px); } }
+    @keyframes status-done { 0% { transform: scale(.8) rotate(-2deg); filter: brightness(2.5); } 45% { transform: scale(1.07) rotate(1deg); } 100% { transform: scale(1); filter: none; } }
+    @keyframes tape-in { from { transform: translateX(-15px); filter: brightness(2); } to { transform: translateX(0); filter: none; } }
+    @keyframes whole-alarm { 50% { filter: saturate(1.8) contrast(1.12); transform: translateX(2px); } }
+    @keyframes pixel-burst { to { opacity: 0; transform: translate(var(--burst-x), var(--burst-y)) rotate(180deg) scale(.15); } }
+
+    @media (max-width: 930px) {
+      .horizon { grid-template-columns: 1fr; }
+      .side-stack { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+      .scoreboard { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+      .score-card { min-height: 70px; }
+      .score-card span { display: none; }
+    }
+
+    @media (max-width: 700px) {
+      .arcade { width: min(100% - 18px, 1560px); padding-top: 10px; }
+      .marquee { grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 10px; }
+      .connection { grid-column: 1 / -1; grid-template-columns: auto auto; justify-content: space-between; width: 100%; text-align: left; }
+      .connection-main { justify-content: flex-start; }
+      .marquee-subtitle { font-size: 8px; }
+      .scoreboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .score-total { grid-column: span 2; }
+      .side-stack { grid-template-columns: 1fr; }
+      .panel-note { display: none; }
+      .agent-grid { grid-template-columns: 1fr; }
+      .world-list { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 410px) {
+      .brand-copy { display: none; }
+      .marquee { grid-template-columns: auto minmax(0, 1fr); }
+      .marquee-title { font-size: 19px; }
+      .game-strip .strip-separator { display: none; }
+      .world-list { grid-template-columns: 1fr; }
+      .bottom-status { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="arcade">
+    <header class="marquee frame">
+      <a class="brand" href="/" aria-label="UI 갤러리로 돌아가기">
+        <span class="brand-mark" aria-hidden="true">◉</span>
+        <span class="brand-copy"><strong>HERDR</strong><span>STATUS ARCADE</span></span>
+      </a>
+      <div class="marquee-center">
+        <h1 class="marquee-title">PIXEL PANIC</h1>
+        <div class="marquee-subtitle"><span class="ticker-arrow">▶</span><span id="marquee-copy">LOADING THE CONTROL ROOM…</span></div>
+      </div>
+      <div class="connection" id="connection" aria-live="polite">
+        <span>UPLINK</span>
+        <span class="connection-main"><i class="signal-dot" aria-hidden="true"></i><span id="connection-label">CONNECTING</span></span>
+      </div>
+    </header>
+
+    <section class="scoreboard" aria-label="에이전트 상태 점수판">
+      <div class="score-card score-total frame">
+        <p>ARCADE FLOOR</p><b id="count-total">0</b><span>AGENTS ONLINE</span>
+      </div>
+      <div class="score-card score-working frame">
+        <p>RUN MODE</p><b id="count-working">0</b><span>WORKING</span>
+      </div>
+      <div class="score-card score-idle frame">
+        <p>STANDBY</p><b id="count-idle">0</b><span>IDLE</span>
+      </div>
+      <div class="score-card score-blocked frame" id="blocked-score">
+        <p>DANGER</p><b id="count-blocked">0</b><span>BLOCKED</span>
+      </div>
+      <div class="score-card score-done frame">
+        <p>CLEARED</p><b id="count-done">0</b><span>DONE</span>
+      </div>
+    </section>
+
+    <div class="horizon">
+      <section class="arena frame" aria-labelledby="arena-title">
+        <header class="panel-heading">
+          <div><p class="eyebrow">LIVE CABINET FLOOR</p><h2 id="arena-title">AGENT ARCADE</h2></div>
+          <span class="panel-note">캐비닛을 선택하면 해당 pane으로 워프합니다.</span>
+        </header>
+        <div class="game-strip">
+          <span>ROUND <b id="snapshot-seq">—</b></span>
+          <i class="strip-separator" aria-hidden="true"></i>
+          <span>SOURCE <b id="source-label">—</b></span>
+          <i class="strip-separator" aria-hidden="true"></i>
+          <span>FOCUS <b id="focus-label">—</b></span>
+          <i class="strip-separator" aria-hidden="true"></i>
+          <span><i class="help-key">CLICK</i> WARP TO PANE</span>
+        </div>
+        <div class="agent-grid" id="agent-grid" aria-live="polite" aria-label="에이전트 캐비닛"></div>
+      </section>
+
+      <aside class="side-stack" aria-label="상태 알림과 이벤트">
+        <section class="danger-panel side-panel frame" id="danger-panel" aria-labelledby="danger-title">
+          <header class="panel-heading">
+            <div><p class="eyebrow">PRIORITY QUEUE</p><h2 id="danger-title">DANGER ZONE</h2></div>
+            <span class="danger-count" id="danger-count">0</span>
+          </header>
+          <div class="danger-list" id="danger-list"></div>
+        </section>
+
+        <section class="side-panel frame" aria-labelledby="feed-title">
+          <header class="panel-heading">
+            <div><p class="eyebrow">RING BUFFER REPLAY</p><h2 id="feed-title">EVENT TAPE</h2></div>
+            <span class="panel-note">가장 최신 이벤트가 위에 옵니다.</span>
+          </header>
+          <div class="event-feed" id="event-feed" aria-live="polite" aria-relevant="additions"></div>
+          <div class="mini-legend" aria-label="상태 색상 안내">
+            <span class="legend-item"><i class="legend-dot" style="--legend: var(--lime)"></i>WORKING</span>
+            <span class="legend-item"><i class="legend-dot" style="--legend: var(--cyan)"></i>IDLE</span>
+            <span class="legend-item"><i class="legend-dot" style="--legend: var(--red)"></i>BLOCKED</span>
+            <span class="legend-item"><i class="legend-dot" style="--legend: var(--yellow)"></i>DONE</span>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <section class="world-panel frame" aria-labelledby="world-title">
+      <header class="panel-heading">
+        <div><p class="eyebrow">MULTIVERSE MAP</p><h2 id="world-title">WORKSPACE WORLDS</h2></div>
+        <span class="panel-note" id="world-summary">탭과 pane을 연결 중입니다.</span>
+      </header>
+      <div class="world-list" id="world-list"></div>
+    </section>
+
+    <footer class="bottom-status">
+      <span>PIXEL PANIC v1.0 · <b id="herdr-version">LOCAL UPLINK</b></span>
+      <span id="clock">SYSTEM CLOCK —</span>
+    </footer>
+  </main>
+
+  <div class="transition-banner" id="transition-banner" role="status" aria-live="assertive">
+    <span class="transition-icon" id="transition-icon">↯</span>
+    <div class="transition-copy"><div class="transition-kicker" id="transition-kicker">STATUS SHIFT</div><div class="transition-message" id="transition-message">Waiting for the next move…</div></div>
+  </div>
+  <div class="warp-toast" id="warp-toast" role="status" aria-live="polite"></div>
+  <div id="fx-layer" aria-hidden="true"></div>
+
+  <script type="module">
+    import { connect } from '/sdk.js';
+
+    const $ = (id) => document.getElementById(id);
+    const agentGrid = $('agent-grid');
+    const dangerList = $('danger-list');
+    const eventFeed = $('event-feed');
+    const worldList = $('world-list');
+    const STATUS = {
+      working: { label: 'WORKING', mark: '▶', burst: '#9cff55', world: '#9cff55' },
+      idle: { label: 'IDLE', mark: 'Zz', burst: '#50e5ff', world: '#50e5ff' },
+      blocked: { label: 'BLOCKED', mark: '!', burst: '#ff455c', world: '#ff455c' },
+      done: { label: 'DONE', mark: '★', burst: '#ffdd57', world: '#ffdd57' },
+      unknown: { label: 'UNKNOWN', mark: '?', burst: '#b588ff', world: '#b588ff' },
+    };
+    const PRIORITY = { blocked: 0, working: 1, idle: 2, done: 3, unknown: 4 };
+    const MAX_EVENTS = 10;
+    let snapshot = null;
+    let seededFeed = false;
+    let toastTimer = 0;
+    let bannerTimer = 0;
+
+    function make(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    function displayName(agent) {
+      return agent.name || agent.kind || 'unnamed-agent';
+    }
+
+    function statusInfo(status) {
+      return STATUS[status] || STATUS.unknown;
+    }
+
+    function shortTime(iso) {
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) return '—';
+      return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    }
+
+    function relativeTime(iso) {
+      const elapsed = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+      if (!Number.isFinite(elapsed)) return 'TIME UNKNOWN';
+      if (elapsed < 10) return 'JUST NOW';
+      if (elapsed < 60) return `${elapsed} SEC`;
+      if (elapsed < 3600) return `${Math.floor(elapsed / 60)} MIN`;
+      return `${Math.floor(elapsed / 3600)} HRS`;
+    }
+
+    function pilot() {
+      const robot = make('span', 'pilot');
+      robot.append(
+        make('i', 'pilot-head'), make('i', 'pilot-body'),
+        make('i', 'pilot-arm left'), make('i', 'pilot-arm right'),
+        make('i', 'pilot-leg left'), make('i', 'pilot-leg right'),
+      );
+      return robot;
+    }
+
+    function createAgentCard(agent) {
+      const state = statusInfo(agent.status);
+      const card = make('button', 'agent-card');
+      card.type = 'button';
+      card.dataset.paneId = agent.paneId;
+      card.dataset.status = agent.status;
+      card.classList.toggle('is-focused', agent.focused);
+      card.setAttribute('aria-label', `${displayName(agent)}, ${state.label}, pane ${agent.paneId}으로 이동`);
+
+      const rivets = make('span', 'card-rivets');
+      const cabinet = make('span', 'cabinet');
+      cabinet.append(make('span', 'cabinet-label', agent.paneId));
+      const screen = make('span', 'cabinet-screen');
+      screen.append(pilot());
+      const controls = make('span', 'cabinet-controls');
+      controls.append(make('i'), make('i'));
+      cabinet.append(screen, controls);
+
+      const copy = make('span', 'agent-copy');
+      copy.append(
+        make('span', 'agent-handle', displayName(agent)),
+        make('span', 'agent-kind', String(agent.kind || 'unknown kind').toUpperCase()),
+        make('span', 'agent-status', `${state.mark} ${state.label}`),
+        make('span', 'agent-task', agent.title || 'AWAITING NEXT COMMAND'),
+      );
+      const since = make('span', 'agent-since');
+      since.dataset.since = agent.statusSince;
+      since.textContent = `IN MODE · ${relativeTime(agent.statusSince)}`;
+      copy.append(since);
+
+      const rail = make('span', 'warp-rail');
+      rail.append(make('span', 'warp-glyph', '↗'), make('span', 'warp-text', 'WARP'));
+      const focus = make('span', 'focus-mark', '◉');
+      focus.title = '현재 포커스';
+      card.append(rivets, cabinet, copy, rail, focus);
+      return card;
+    }
+
+    function renderAgents(agents) {
+      if (!agents.length) {
+        const empty = make('div', 'empty-bay');
+        empty.innerHTML = '<div><b>INSERT AGENT COIN</b><span>에이전트가 등장하면 이 캐비닛 플로어에 표시됩니다.</span></div>';
+        agentGrid.replaceChildren(empty);
+        return;
+      }
+      const ordered = [...agents].sort((a, b) => {
+        const statusOrder = (PRIORITY[a.status] ?? 9) - (PRIORITY[b.status] ?? 9);
+        if (statusOrder) return statusOrder;
+        if (a.focused !== b.focused) return a.focused ? -1 : 1;
+        return displayName(a).localeCompare(displayName(b), 'ko');
+      });
+      agentGrid.replaceChildren(...ordered.map(createAgentCard));
+    }
+
+    function createDangerItem(agent) {
+      const item = make('button', 'danger-item');
+      item.type = 'button';
+      item.dataset.paneId = agent.paneId;
+      item.setAttribute('aria-label', `${displayName(agent)}의 막힘 상태 pane으로 이동`);
+      const copy = make('span');
+      copy.append(make('span', 'danger-name', displayName(agent)), make('span', 'danger-title', agent.title || 'NO TASK TITLE'));
+      item.append(make('span', 'danger-sign', '!'), copy, make('span', 'danger-warp', 'WARP ↗'));
+      return item;
+    }
+
+    function renderDanger(agents) {
+      const blocked = agents.filter((agent) => agent.status === 'blocked');
+      const panel = $('danger-panel');
+      panel.classList.toggle('has-danger', blocked.length > 0);
+      $('danger-count').textContent = String(blocked.length);
+      $('blocked-score').classList.toggle('has-danger', blocked.length > 0);
+      if (blocked.length) {
+        dangerList.replaceChildren(...blocked.map(createDangerItem));
+        return;
+      }
+      const empty = make('div', 'danger-empty');
+      empty.append(make('span', 'safe-shield', '✓'), make('span', '', 'ALL CLEAR — 막힌 에이전트가 없습니다.'));
+      dangerList.replaceChildren(empty);
+    }
+
+    function renderWorlds(current) {
+      if (!current.workspaces.length) {
+        worldList.replaceChildren(make('div', 'world-empty', 'NO WORLDS DETECTED'));
+        return;
+      }
+      const worlds = current.workspaces.map((workspace) => {
+        const state = statusInfo(workspace.agentStatus || 'unknown');
+        const card = make('article', 'world-card');
+        card.classList.toggle('is-focused', workspace.focused);
+        card.style.setProperty('--world-state', state.world);
+        const label = make('div', 'world-label', `#${workspace.number} ${workspace.label || workspace.workspaceId}`);
+        const meta = make('div', 'world-meta');
+        meta.append(
+          make('span', '', `${workspace.tabCount} TABS`),
+          make('span', '', `${workspace.paneCount} PANES`),
+          make('span', 'world-state', state.label),
+        );
+        if (workspace.worktree?.isLinkedWorktree) meta.append(make('span', '', 'WORKTREE'));
+        card.append(label, meta);
+        return card;
+      });
+      worldList.replaceChildren(...worlds);
+    }
+
+    function eventTone(event) {
+      if (event.type === 'agent_status_changed') return `status to-${event.to}`;
+      if (event.type === 'agent_appeared' || event.type === 'pane_opened' || event.type === 'workspace_opened') return 'appeared';
+      if (event.type === 'agent_left') return 'left';
+      if (event.type === 'agent_title_changed') return 'title';
+      if (event.type === 'focus_changed') return 'focus';
+      if (event.type === 'source_disconnected' || event.type === 'pane_closed' || event.type === 'workspace_closed') return 'disconnected';
+      return '';
+    }
+
+    function eventTag(event) {
+      const tags = {
+        agent_status_changed: 'SHIFT', agent_appeared: 'JOIN', agent_left: 'EXIT', agent_title_changed: 'TASK',
+        pane_opened: 'PANE+', pane_closed: 'PANE-', workspace_opened: 'WORLD+', workspace_closed: 'WORLD-',
+        focus_changed: 'FOCUS', source_connected: 'UPLINK+', source_disconnected: 'UPLINK-',
+      };
+      return tags[event.type] || 'EVENT';
+    }
+
+    function eventMessage(event) {
+      switch (event.type) {
+        case 'agent_status_changed': return `${event.name || event.kind} · ${String(event.from).toUpperCase()} → ${String(event.to).toUpperCase()}${event.title ? ` · ${event.title}` : ''}`;
+        case 'agent_appeared': return `${event.name || event.kind} entered the floor · ${String(event.status).toUpperCase()}`;
+        case 'agent_left': return `${event.name || event.kind} left pane ${event.paneId}`;
+        case 'agent_title_changed': return `${event.kind} mission: ${event.title || 'NO TITLE'}`;
+        case 'pane_opened': return `Pane ${event.paneId} opened in ${event.workspaceId}`;
+        case 'pane_closed': return `Pane ${event.paneId} closed in ${event.workspaceId}`;
+        case 'workspace_opened': return `World ${event.label} opened`;
+        case 'workspace_closed': return `World ${event.label} closed`;
+        case 'focus_changed': return `Focus → ${event.focus.paneId || 'NO PANE'}`;
+        case 'source_connected': return 'Live herdr source connected';
+        case 'source_disconnected': return 'Live herdr source disconnected';
+        default: return event.type;
+      }
+    }
+
+    function addEvent(event) {
+      if (!event || eventFeed.querySelector(`[data-event-seq="${String(event.seq)}"]`)) return;
+      const row = make('div', `event-row ${eventTone(event)}`);
+      row.dataset.eventSeq = String(event.seq);
+      const copy = make('div', 'event-copy');
+      copy.append(make('span', 'event-type', eventTag(event)), document.createTextNode(eventMessage(event)));
+      row.append(make('time', 'event-time', shortTime(event.ts)), copy);
+      eventFeed.prepend(row);
+      while (eventFeed.children.length > MAX_EVENTS) eventFeed.lastElementChild.remove();
+    }
+
+    function render(current) {
+      snapshot = current;
+      const stats = current.stats;
+      $('count-total').textContent = String(stats.total);
+      for (const status of ['working', 'idle', 'blocked', 'done']) $('count-' + status).textContent = String(stats[status]);
+      $('snapshot-seq').textContent = String(current.seq);
+      $('source-label').textContent = String(current.source).toUpperCase();
+      $('focus-label').textContent = current.focus.paneId || 'NO PANE';
+      $('herdr-version').textContent = current.herdr ? `HERDR ${current.herdr.version} · P${current.herdr.protocol}` : `${String(current.source).toUpperCase()} MODE`;
+      $('world-summary').textContent = `${current.workspaces.length} WORLDS · ${current.tabs.length} TABS · ${current.panes.length} PANES`;
+      $('marquee-copy').textContent = current.connected ? `${stats.total} AGENTS IN PLAY · WATCH THE PANIC` : 'LAST KNOWN STATE · SOURCE OFFLINE';
+      renderAgents(current.agents);
+      renderDanger(current.agents);
+      renderWorlds(current);
+      setSourceState(current.connected, current.source);
+    }
+
+    function setSourceState(sourceIsUp, sourceName) {
+      const connection = $('connection');
+      connection.classList.toggle('is-up', sourceIsUp);
+      connection.classList.toggle('is-down', !sourceIsUp);
+      $('connection-label').textContent = sourceIsUp ? `${String(sourceName || 'SOURCE').toUpperCase()} ONLINE` : 'UPLINK LOST';
+    }
+
+    function refreshAges() {
+      document.querySelectorAll('[data-since]').forEach((node) => {
+        node.textContent = `IN MODE · ${relativeTime(node.dataset.since)}`;
+      });
+    }
+
+    function showToast(message, tone = '') {
+      const toast = $('warp-toast');
+      clearTimeout(toastTimer);
+      toast.className = `warp-toast ${tone} show`;
+      toast.textContent = message;
+      toastTimer = setTimeout(() => { toast.className = 'warp-toast'; }, 2600);
+    }
+
+    function findAgentCard(paneId) {
+      return [...agentGrid.querySelectorAll('.agent-card')].find((card) => card.dataset.paneId === paneId) || null;
+    }
+
+    function burstFrom(target, color) {
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      const x = rect.left + rect.width * .5;
+      const y = rect.top + rect.height * .46;
+      const fragments = color === '#ff455c' ? 18 : 12;
+      for (let index = 0; index < fragments; index += 1) {
+        const piece = make('i', 'pixel-burst');
+        const angle = (Math.PI * 2 * index) / fragments + (Math.random() - .5) * .45;
+        const distance = 26 + Math.random() * 58;
+        piece.style.left = `${x}px`;
+        piece.style.top = `${y}px`;
+        piece.style.setProperty('--burst-x', `${Math.cos(angle) * distance}px`);
+        piece.style.setProperty('--burst-y', `${Math.sin(angle) * distance}px`);
+        piece.style.setProperty('--burst-color', color);
+        $('fx-layer').append(piece);
+        setTimeout(() => piece.remove(), 900);
+      }
+    }
+
+    function announceTransition(event) {
+      const state = statusInfo(event.to);
+      const banner = $('transition-banner');
+      clearTimeout(bannerTimer);
+      banner.className = `transition-banner to-${event.to} show`;
+      $('transition-icon').textContent = state.mark;
+      $('transition-kicker').textContent = event.to === 'blocked' ? '!!! PRIORITY STATUS SHIFT !!!' : 'STATUS SHIFT DETECTED';
+      $('transition-message').textContent = `${event.name || event.kind || event.paneId}: ${String(event.from).toUpperCase()} → ${state.label}`;
+      bannerTimer = setTimeout(() => { banner.className = 'transition-banner'; }, event.to === 'blocked' ? 3400 : 2300);
+      if (event.to === 'blocked') {
+        document.body.classList.remove('red-alert');
+        void document.body.offsetWidth;
+        document.body.classList.add('red-alert');
+        setTimeout(() => document.body.classList.remove('red-alert'), 1650);
+      }
+    }
+
+    function playTransition(event) {
+      const card = findAgentCard(event.paneId);
+      if (card) {
+        card.classList.remove('status-shift', 'to-working', 'to-idle', 'to-blocked', 'to-done');
+        void card.offsetWidth;
+        card.classList.add('status-shift', `to-${event.to}`);
+        burstFrom(card, statusInfo(event.to).burst);
+        setTimeout(() => card.classList.remove('status-shift', `to-${event.to}`), 1050);
+      }
+      announceTransition(event);
+    }
+
+    async function warpToPane(paneId) {
+      const card = findAgentCard(paneId);
+      if (card) card.classList.add('is-warping');
+      showToast(`WARP GATE → ${paneId}`, '');
+      const success = await client.focusPane(paneId);
+      if (card) {
+        card.classList.remove('is-warping');
+        card.classList.add(success ? 'warp-ok' : 'warp-fail');
+        setTimeout(() => card.classList.remove('warp-ok', 'warp-fail'), 700);
+      }
+      showToast(success ? `WARP CONFIRMED · ${paneId}` : `WARP UNAVAILABLE · ${paneId}`, success ? 'good' : 'danger');
+    }
+
+    agentGrid.addEventListener('click', (event) => {
+      const card = event.target.closest('.agent-card');
+      if (card?.dataset.paneId) warpToPane(card.dataset.paneId);
+    });
+
+    dangerList.addEventListener('click', (event) => {
+      const item = event.target.closest('.danger-item');
+      if (item?.dataset.paneId) warpToPane(item.dataset.paneId);
+    });
+
+    function updateClock() {
+      $('clock').textContent = `SYSTEM CLOCK ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`;
+    }
+
+    const client = connect();
+    client.onTransport((up) => setSourceState(up && Boolean(snapshot?.connected), snapshot?.source || 'source'));
+    client.onUpdate(({ snapshot: next, events }) => {
+      render(next);
+      if (!seededFeed) {
+        for (const event of next.recentEvents) addEvent(event);
+        seededFeed = true;
+      }
+      for (const event of events) addEvent(event);
+    });
+    client.onEvent('agent_status_changed', (event) => playTransition(event));
+
+    updateClock();
+    setInterval(updateClock, 1000);
+    setInterval(refreshAges, 5000);
+  </script>
+</body>
+</html>
