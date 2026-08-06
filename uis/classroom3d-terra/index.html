@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#142128">
+  <title>Terra 3D Classroom — herdr status</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🏫%3C/text%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: dark;
+      --glass: rgba(12, 23, 29, .72);
+      --line: rgba(232, 244, 235, .18);
+      --ink: #edf4ed;
+      --muted: #aebdb9;
+      --working: #57d58a;
+      --idle: #8eacc0;
+      --blocked: #ff5f68;
+      --done: #ffd36a;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; min-width: 320px; height: 100%; margin: 0; overflow: hidden; background: #142128; }
+    body { color: var(--ink); font: 12px/1.35 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; }
+    #stage { position: fixed; inset: 0; background: radial-gradient(circle at 58% 0%, #e7f5ff 0, #a7c9d7 30%, #4d6872 100%); }
+    #stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    .hud { position: fixed; z-index: 2; pointer-events: none; }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(19, 35, 40, .9), var(--glass));
+      box-shadow: 0 14px 40px rgba(0, 0, 0, .26), inset 0 1px rgba(255, 255, 255, .08);
+      backdrop-filter: blur(12px);
+    }
+
+    #brand { top: 18px; left: 18px; width: min(310px, calc(100vw - 36px)); padding: 13px 14px 12px; }
+    .eyebrow { display: flex; align-items: center; gap: 7px; color: #bed3cf; font-size: 10px; font-weight: 800; letter-spacing: .13em; }
+    .signal { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #778a8e; box-shadow: 0 0 0 3px rgba(138, 162, 164, .14); }
+    .signal.up { background: var(--working); box-shadow: 0 0 0 3px rgba(87, 213, 138, .18), 0 0 14px rgba(87, 213, 138, .65); }
+    .signal.down { background: var(--blocked); box-shadow: 0 0 0 3px rgba(255, 95, 104, .18); }
+    #brand h1 { margin: 5px 0 4px; font: 700 clamp(18px, 2.5vw, 25px)/1 Georgia, "Nanum Myeongjo", serif; letter-spacing: .015em; }
+    #brand p { margin: 0; color: var(--muted); font-size: 11px; }
+    #brand a { position: absolute; top: 13px; right: 14px; color: #d9eee4; font-weight: 700; text-decoration: none; pointer-events: auto; }
+    #brand a:hover { color: #fff; }
+
+    #stats { top: 18px; right: 18px; display: grid; grid-template-columns: repeat(4, minmax(64px, 1fr)); gap: 1px; overflow: hidden; }
+    .stat { min-width: 72px; padding: 10px 11px 9px; background: rgba(10, 23, 28, .63); }
+    .stat small { display: block; margin-bottom: 1px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .07em; }
+    .stat strong { display: block; font-size: 21px; line-height: 1; }
+    .stat.working strong { color: var(--working); }
+    .stat.idle strong { color: var(--idle); }
+    .stat.blocked strong { color: var(--blocked); }
+    .stat.done strong { color: var(--done); }
+
+    #hint { bottom: 18px; left: 18px; max-width: min(335px, calc(100vw - 36px)); padding: 10px 12px; color: #d4e2dd; }
+    #hint b { color: #fff5cf; }
+    #hint .legend { display: flex; flex-wrap: wrap; gap: 7px 11px; margin-top: 7px; color: var(--muted); font-size: 10px; }
+    .legend i { display: inline-block; width: 7px; height: 7px; margin: 0 4px 1px 0; border-radius: 50%; vertical-align: middle; }
+
+    #feed { right: 18px; bottom: 18px; width: min(345px, calc(100vw - 36px)); padding: 10px 11px; }
+    #feed h2 { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 7px; color: #dceae5; font-size: 10px; letter-spacing: .09em; }
+    #feed h2 span { color: var(--muted); font-weight: 500; letter-spacing: 0; }
+    #feed-list { display: grid; gap: 4px; }
+    .feed-row { display: grid; grid-template-columns: auto 1fr; gap: 7px; align-items: baseline; color: #d5e4dd; font-size: 10px; }
+    .feed-row time { color: #8da39d; font-variant-numeric: tabular-nums; }
+    .feed-row.blocked { color: #ffadb1; }
+    .feed-row.done { color: #ffe39b; }
+
+    #tooltip { position: fixed; z-index: 4; min-width: 190px; max-width: min(310px, calc(100vw - 24px)); padding: 9px 10px; border: 1px solid rgba(241, 249, 245, .24); border-radius: 10px; color: #eff9f2; background: rgba(6, 15, 19, .9); box-shadow: 0 12px 30px rgba(0, 0, 0, .32); opacity: 0; pointer-events: none; transform: translateY(4px); transition: opacity .12s ease, transform .12s ease; }
+    #tooltip.show { opacity: 1; transform: translateY(0); }
+    #tooltip strong { display: block; color: #fff; font-size: 12px; }
+    #tooltip span { display: block; margin-top: 2px; color: #bfd0c9; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #tooltip em { display: block; margin-top: 5px; color: #ffe29a; font-size: 10px; font-style: normal; }
+
+    #toast { position: fixed; z-index: 5; bottom: 20px; left: 50%; max-width: calc(100vw - 32px); padding: 8px 12px; border: 1px solid rgba(239, 250, 243, .2); border-radius: 999px; color: #f7fcf8; background: rgba(7, 18, 22, .86); box-shadow: 0 8px 25px rgba(0, 0, 0, .3); opacity: 0; pointer-events: none; transform: translate(-50%, 10px); transition: opacity .18s ease, transform .18s ease; }
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 720px) {
+      #brand { top: 10px; left: 10px; padding: 10px 11px; }
+      #brand h1 { font-size: 18px; }
+      #stats { top: auto; right: 10px; bottom: 10px; grid-template-columns: repeat(4, auto); border-radius: 11px; }
+      .stat { min-width: 54px; padding: 7px 8px; }
+      .stat strong { font-size: 17px; }
+      #hint { bottom: 68px; left: 10px; padding: 8px 10px; font-size: 10px; }
+      #feed { display: none; }
+      #toast { bottom: 74px; font-size: 11px; }
+    }
+
+    @media (max-width: 470px) {
+      #brand p { display: none; }
+      #hint { max-width: 245px; }
+      #hint .legend { display: none; }
+      #stats { left: 10px; right: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main id="stage" aria-label="실시간 3D 교실 관전 화면"></main>
+
+  <section class="hud panel" id="brand">
+    <a href="/" aria-label="갤러리로 돌아가기">← gallery</a>
+    <div class="eyebrow"><i class="signal" id="transport-dot"></i><span id="source-label">CONNECTING</span> · TEACHER VIEW</div>
+    <h1>Terra 3D Classroom</h1>
+    <p id="scene-subtitle">학생 에이전트를 클릭하면 해당 pane으로 이동합니다.</p>
+  </section>
+
+  <section class="hud panel" id="stats" aria-label="에이전트 상태 통계">
+    <div class="stat working"><small>WORKING</small><strong id="count-working">0</strong></div>
+    <div class="stat idle"><small>IDLE</small><strong id="count-idle">0</strong></div>
+    <div class="stat blocked"><small>BLOCKED</small><strong id="count-blocked">0</strong></div>
+    <div class="stat done"><small>DONE</small><strong id="count-done">0</strong></div>
+  </section>
+
+  <section class="hud panel" id="hint">
+    <b>교탁 앞 선생님 시점</b> · 마우스를 움직여 교실을 살펴보세요.<br>
+    학생을 클릭하면 herdr pane으로 점프합니다.
+    <div class="legend" aria-label="상태 색상 범례">
+      <span><i style="background:#57d58a"></i>필기 중</span>
+      <span><i style="background:#8eacc0"></i>엎드림</span>
+      <span><i style="background:#ff5f68"></i>질문 있음</span>
+      <span><i style="background:#ffd36a"></i>완료</span>
+    </div>
+  </section>
+
+  <section class="hud panel" id="feed" aria-live="polite">
+    <h2>CLASSROOM ACTIVITY <span id="agent-total">0 students</span></h2>
+    <div id="feed-list"></div>
+  </section>
+
+  <aside id="tooltip"><strong></strong><span></span><em>클릭하여 pane으로 이동</em></aside>
+  <div id="toast" role="status"></div>
+
+  <script type="module" src="./scene.js"></script>
+</body>
+</html>
