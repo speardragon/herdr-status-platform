@@ -1,0 +1,112 @@
+<!doctype html>
+<!--
+  3학년 herdr반 — 선생님 1인칭 교실 관전 UI.
+  교탁 앞에 선 시점에서 학생(=에이전트)들이 앉은 교실 전경을 본다.
+    working  책상에서 공부      idle  책상에 엎드림
+    blocked  번쩍 손들고 질문   done  양손 엄지척
+  워크스페이스는 분단(seating group), pane 하나가 학생 하나다.
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3학년 herdr반 — herdr status</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏫</text></svg>">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header id="hud">
+    <a class="back" href="/">← 갤러리</a>
+    <div class="brand"><span class="ico" aria-hidden="true">🏫</span><b>3학년 herdr반</b><small>담임 시점</small></div>
+    <div class="hud-right">
+      <span class="ind" id="ind-link"><i></i>교내망</span>
+      <span class="ind" id="ind-src"><i></i><span id="src-label">출석 시스템</span></span>
+      <span class="readout">출석 <b id="head-count">0</b>명</span>
+      <span class="readout">seq <b id="seq">––</b></span>
+      <button id="bell-toggle" type="button" title="교실 알림음 켜기/끄기">🔕 알림음</button>
+    </div>
+  </header>
+
+  <div id="hand-banner" hidden></div>
+
+  <main>
+    <section class="room" id="room">
+      <div class="ceiling"><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span></div>
+
+      <div class="window win-a" aria-hidden="true">
+        <div class="sky"><span class="sun"></span><span class="cloud c1"></span><span class="cloud c2"></span><span class="hill"></span><span class="tree t1"></span><span class="tree t2"></span></div>
+        <div class="sash"></div>
+      </div>
+      <div class="window win-b" aria-hidden="true">
+        <div class="sky"><span class="cloud c3"></span><span class="hill"></span><span class="tree t3"></span></div>
+        <div class="sash"></div>
+      </div>
+
+      <div class="blackboard">
+        <div class="board">
+          <div class="bb-row bb-head">
+            <span id="bb-date">오늘</span>
+            <span class="motto">급훈 · 모르면 손! 알면 도움!</span>
+          </div>
+          <div class="bb-notice" id="bb-notice">출석 확인 중…</div>
+          <div class="bb-tally" id="bb-tally"></div>
+        </div>
+        <div class="chalk-tray"><span class="chalk w"></span><span class="chalk y"></span><span class="chalk r"></span><span class="eraser"></span></div>
+      </div>
+
+      <div class="wallkit" aria-hidden="true">
+        <div class="clock">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="46" class="c-face"/>
+            <circle cx="50" cy="50" r="46" class="c-rim"/>
+            <g class="c-ticks"></g>
+            <line x1="50" y1="50" x2="50" y2="28" class="c-hour" id="c-hour"/>
+            <line x1="50" y1="50" x2="50" y2="18" class="c-min" id="c-min"/>
+            <line x1="50" y1="50" x2="50" y2="14" class="c-sec" id="c-sec"/>
+            <circle cx="50" cy="50" r="3.5" class="c-pin"/>
+          </svg>
+        </div>
+        <div class="timetable">
+          <b>시간표</b>
+          <ul id="timetable-list"></ul>
+        </div>
+      </div>
+
+      <div class="floor">
+        <svg viewBox="0 0 100 40" preserveAspectRatio="none">
+          <path d="M0 0 H100 V40 H0 Z" class="f-base"/>
+          <path d="M42 0 L4 40 M46 0 L26 40 M50 0 L50 40 M54 0 L74 40 M58 0 L96 40" class="f-line"/>
+          <path d="M0 9 H100 M0 18 H100 M0 29 H100" class="f-line faint"/>
+        </svg>
+      </div>
+
+      <div class="students" id="students"></div>
+      <p class="empty-room" id="empty-room" hidden>교실이 비어 있어요 — 아직 등교한 학생이 없습니다.</p>
+
+      <div class="podium" aria-hidden="true">
+        <div class="podium-top"></div>
+        <div class="podium-things"><span class="mug">☕</span><span class="pointer"></span></div>
+      </div>
+    </section>
+
+    <section class="deskwork">
+      <div class="drawer">
+        <h2>✋ 질문 대기 줄 <span class="hint">클릭 → 그 자리로 이동</span></h2>
+        <div id="queue" class="queue"></div>
+      </div>
+      <div class="drawer">
+        <h2>📋 출석부 <span class="hint">클릭 → 그 자리로 이동</span></h2>
+        <div id="roll" class="roll"></div>
+      </div>
+      <div class="drawer">
+        <h2>📓 학급 일지 <span class="hint">최신 위</span></h2>
+        <div id="journal" class="journal"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" hidden></div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
