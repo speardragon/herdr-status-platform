@@ -1,0 +1,537 @@
+/* 양떼 초원 — herdr 관전 UI. 낮의 목장 팔레트로 고정한 단일 테마. */
+* { box-sizing: border-box; }
+
+:root {
+  --wood: #7c5026;
+  --wood-dark: #59371a;
+  --wood-light: #9a6b3f;
+  --grass: #74b56a;
+  --grass-deep: #63a75a;
+  --alert: #e5484d;
+  --gold: #ffd766;
+  --ink: #3c3227;
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font: 14px/1.5 'Pretendard', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  background: #9ed9f0;
+  color: var(--ink);
+}
+
+/* ───────── 헤더: 나무 간판 ───────── */
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 16px;
+  background: linear-gradient(var(--wood-light), var(--wood));
+  border-bottom: 4px solid var(--wood-dark);
+  color: #ffefd7;
+  position: relative;
+  z-index: 900;
+}
+header .back { color: #ffe3ad; text-decoration: none; font-weight: 600; }
+header .back:hover { text-decoration: underline; }
+header h1 { margin: 0; font-size: 17px; letter-spacing: 1px; text-shadow: 0 1px 0 rgba(0,0,0,.35); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(0,0,0,.22);
+  border: 1px solid rgba(255,255,255,.18);
+}
+.chip b { font-size: 13px; }
+.chip.st-working b { color: #b8f5a8; }
+.chip.st-idle b { color: #ded4c4; }
+.chip.st-blocked b { color: #ffb3ae; }
+.chip.st-done b { color: var(--gold); }
+.chip.st-blocked.hot { background: var(--alert); border-color: #ff9a94; animation: chipPulse 1s infinite; }
+@keyframes chipPulse { 50% { box-shadow: 0 0 12px rgba(229,72,77,.9); } }
+.conn { margin-left: auto; font-size: 12px; opacity: .95; }
+
+/* ───────── 초원 무대 ───────── */
+#meadow {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: linear-gradient(#9ed9f0 0%, #c9ecca 24%, #7fc275 29%, var(--grass) 45%, var(--grass-deep) 100%);
+}
+#meadow::after { /* blocked 경보 비네트 (has-blocked에서만 표시) */
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: inset 0 0 130px rgba(229,72,77,.35);
+  transition: opacity .6s;
+}
+body.has-blocked #meadow::after { opacity: 1; animation: vignette 1.6s infinite; }
+@keyframes vignette { 50% { opacity: .45; } }
+#meadow.flash::after { opacity: 1; box-shadow: inset 0 0 180px rgba(229,72,77,.65); transition: none; }
+body.offline #meadow { filter: grayscale(.85) brightness(.92); }
+
+/* ───────── 하늘 ───────── */
+#sky { position: absolute; inset: 0 0 auto 0; height: 30%; pointer-events: none; overflow: hidden; }
+#sun {
+  position: absolute;
+  top: 22px;
+  right: 7%;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff4c2, #ffd94d 70%);
+  box-shadow: 0 0 46px 16px rgba(255,222,90,.55);
+  animation: sunBreathe 6s ease-in-out infinite;
+}
+@keyframes sunBreathe { 50% { box-shadow: 0 0 60px 22px rgba(255,222,90,.7); } }
+body.offline #sun { opacity: .35; }
+.cloud {
+  position: absolute;
+  background: rgba(255,255,255,.92);
+  border-radius: 40px;
+  animation: drift linear infinite;
+}
+.cloud::before, .cloud::after {
+  content: '';
+  position: absolute;
+  background: inherit;
+  border-radius: 50%;
+}
+.cloud-a { top: 34px; left: -140px; width: 110px; height: 30px; animation-duration: 85s; }
+.cloud-a::before { width: 48px; height: 48px; top: -22px; left: 16px; }
+.cloud-a::after { width: 34px; height: 34px; top: -14px; left: 56px; }
+.cloud-b { top: 84px; left: -220px; width: 80px; height: 24px; opacity: .8; animation-duration: 120s; animation-delay: -40s; }
+.cloud-b::before { width: 36px; height: 36px; top: -16px; left: 12px; }
+.cloud-b::after { width: 26px; height: 26px; top: -10px; left: 42px; }
+@keyframes drift { to { transform: translateX(calc(100vw + 320px)); } }
+
+/* blocked 먹구름 — 양 하나라도 갇히면 몰려온다 */
+#storm {
+  position: absolute;
+  top: 12px;
+  left: 6%;
+  width: 130px;
+  height: 40px;
+  border-radius: 40px;
+  background: #5d6470;
+  opacity: 0;
+  transform: translateY(-70px);
+  transition: opacity .8s, transform .8s;
+}
+#storm::before, #storm::after {
+  content: '';
+  position: absolute;
+  background: inherit;
+  border-radius: 50%;
+}
+#storm::before { width: 58px; height: 58px; top: -28px; left: 18px; }
+#storm::after { width: 42px; height: 42px; top: -18px; left: 66px; }
+body.has-blocked #storm { opacity: 1; transform: translateY(0); }
+#storm .bolt {
+  position: absolute;
+  bottom: -22px;
+  left: 52px;
+  font-size: 22px;
+  animation: boltFlicker 1.3s infinite;
+}
+@keyframes boltFlicker { 0%, 100% { opacity: 0; } 12%, 30% { opacity: 1; } 45% { opacity: .2; } }
+
+/* ───────── 목초지(paddock) 배치 ───────── */
+#pasture { position: absolute; inset: 0; overflow-y: auto; }
+#paddocks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  align-content: flex-start;
+  gap: 34px 22px;
+  padding: 13vh 20px 120px;
+  min-height: 100%;
+}
+#empty-hint {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255,255,255,.8);
+  border-radius: 14px;
+  padding: 14px 22px;
+  font-weight: 600;
+}
+
+.paddock {
+  position: relative;
+  flex: 1 1 320px;
+  max-width: 700px;
+  min-height: 250px;
+  border: 6px solid var(--wood);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle 3px at 12% 30%, rgba(255,255,255,.75) 40%, transparent 41%),
+    radial-gradient(circle 3px at 78% 64%, #ffe08a 40%, transparent 41%),
+    radial-gradient(circle 3px at 40% 82%, rgba(255,255,255,.7) 40%, transparent 41%),
+    radial-gradient(circle 3px at 62% 22%, #ffb7c9 40%, transparent 41%),
+    radial-gradient(circle 60px at 24% 70%, rgba(255,255,255,.07), transparent),
+    radial-gradient(circle 90px at 76% 30%, rgba(0,0,0,.05), transparent),
+    linear-gradient(rgba(124,196,110,.9), rgba(102,172,92,.9));
+  box-shadow: inset 0 0 0 3px rgba(255,255,255,.14), 0 6px 0 rgba(0,0,0,.1);
+  transition: opacity .5s, transform .5s;
+}
+.paddock.leaving { opacity: 0; transform: scale(.95); }
+.paddock.has-blocked { border-color: var(--alert); animation: fenceAlarm 1s infinite; }
+@keyframes fenceAlarm { 50% { box-shadow: inset 0 0 0 3px rgba(255,255,255,.14), 0 0 26px rgba(229,72,77,.75); } }
+
+.signpost {
+  position: absolute;
+  top: -22px;
+  left: 16px;
+  z-index: 40;
+  max-width: calc(100% - 32px);
+  padding: 3px 14px;
+  background: linear-gradient(var(--wood-light), var(--wood));
+  border: 2px solid var(--wood-dark);
+  border-radius: 7px;
+  color: #fff4e0;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 3px 4px rgba(0,0,0,.28);
+}
+.signpost .count { margin-left: 8px; font-weight: 500; opacity: .85; font-size: 12px; }
+.signpost .wt { margin-left: 6px; font-size: 11px; opacity: .8; }
+.paddock.has-blocked .signpost { background: var(--alert); border-color: #a3282c; }
+
+.field { position: absolute; inset: 6px; overflow: visible; }
+
+/* ───────── 양 ───────── */
+.sheep {
+  position: absolute;
+  width: 92px;
+  height: 80px;
+  margin: -40px 0 0 -46px; /* left/top 좌표가 양의 중심이 되게 */
+  cursor: pointer;
+  user-select: none;
+  transition: left var(--wd, 3s) linear, top var(--wd, 3s) linear, opacity .55s, filter .55s;
+  outline: none;
+}
+.sheep:focus-visible svg { filter: drop-shadow(0 0 6px #fff); }
+.sheep svg { width: 100%; height: 100%; overflow: visible; display: block; }
+.sheep.flip svg { transform: scaleX(-1); }
+.sheep.spawn { animation: spawnPop .65s cubic-bezier(.34, 1.56, .64, 1); }
+@keyframes spawnPop { 0% { opacity: 0; transform: translateY(-46px) scale(.3); } 70% { transform: translateY(4px) scale(1.06); } 100% { opacity: 1; transform: none; } }
+.sheep.leaving { opacity: 0; filter: blur(3px); pointer-events: none; }
+.sheep.focus-ok svg { filter: drop-shadow(0 0 10px #2ecc71); }
+.sheep.focus-fail svg { filter: drop-shadow(0 0 10px var(--alert)); }
+
+/* 몸 부위 기본색 */
+.s-fluff, .s-tail { fill: var(--wool, #fdf9ee); stroke: rgba(0,0,0,.07); stroke-width: 1; }
+.s-leg, .s-face, .s-ear { fill: #57402e; }
+.s-ear { fill: #6b5138; }
+.s-eye { fill: #221a12; }
+.s-lid { display: none; stroke: #221a12; stroke-width: 1.6; fill: none; stroke-linecap: round; }
+.s-shadow { fill: rgba(30,60,25,.22); }
+.s-cheek { fill: rgba(255,150,150,.35); display: none; }
+
+/* 상태별 양털 */
+.st-working { --wool: #fdf9ee; }
+.st-idle { --wool: #e6dfd2; }
+.st-blocked { --wool: #ff8177; }
+.st-unknown { --wool: #c3c3c3; }
+.st-done { --wool: var(--gold); }
+.st-done .s-fluff, .st-done .s-tail { stroke: rgba(190,130,0,.35); filter: drop-shadow(0 0 5px rgba(255,205,70,.85)); }
+
+/* 걷기 */
+.sheep.walking .s-leg {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+  animation: legSwing .5s ease-in-out infinite alternate;
+}
+.sheep.walking .s-leg.l2, .sheep.walking .s-leg.l4 { animation-delay: .25s; }
+@keyframes legSwing { from { transform: rotate(16deg); } to { transform: rotate(-16deg); } }
+.sheep.walking .s-body, .sheep.walking .s-head { animation: bodyBob .5s ease-in-out infinite alternate; }
+@keyframes bodyBob { to { transform: translateY(-2.5px); } }
+
+/* 풀 뜯기 — working인데 이동하지 않을 때 */
+.sheep.grazing .s-head {
+  transform-box: fill-box;
+  transform-origin: 12% 88%;
+  animation: graze 3s ease-in-out infinite;
+}
+@keyframes graze {
+  0%, 12% { transform: rotate(0); }
+  38%, 74% { transform: rotate(46deg); }
+  92%, 100% { transform: rotate(0); }
+}
+
+/* 낮잠(idle) — 다리 접고 엎드려 잔다 */
+.st-idle .s-legs { transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(.22); }
+.st-idle .s-root { transform: translateY(9px); }
+.st-idle .s-body { animation: snooze 3.2s ease-in-out infinite; }
+@keyframes snooze { 50% { transform: scale(1.025, .97); } }
+.st-idle .s-head { transform-box: fill-box; transform-origin: 12% 88%; transform: rotate(10deg); }
+.st-idle .s-eye { display: none; }
+.st-idle .s-lid { display: block; }
+.zzz { display: none; position: absolute; top: -10px; right: 0; font-size: 15px; pointer-events: none; }
+.st-idle .zzz { display: block; animation: zFloat 2.8s ease-in infinite; }
+@keyframes zFloat {
+  0% { opacity: 0; transform: translateY(6px) scale(.6); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-26px) scale(1.2); }
+}
+
+/* 구조 요청(blocked) — 가장 시끄러운 양 */
+.st-blocked .s-root { animation: tremble .16s infinite; }
+@keyframes tremble {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-1.7px, .5px) rotate(-1.3deg); }
+  75% { transform: translate(1.7px, -.5px) rotate(1.3deg); }
+}
+.st-blocked .s-eye { transform-box: fill-box; transform-origin: center; transform: scale(1.7); }
+.st-blocked .s-cheek { display: block; }
+.sheep.st-blocked::before { /* 바닥 경보 링 */
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 80px;
+  height: 22px;
+  margin-left: -40px;
+  border: 3px solid rgba(229,72,77,.85);
+  border-radius: 50%;
+  animation: sosRing 1.15s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes sosRing { from { transform: scale(.45); opacity: .95; } to { transform: scale(1.6); opacity: 0; } }
+.alarm {
+  display: none;
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 55;
+  padding: 1px 9px;
+  background: var(--alert);
+  border: 1px solid #ffb0ab;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(229,72,77,.6);
+}
+.st-blocked .alarm { display: block; animation: alarmHop .6s ease-in-out infinite alternate; }
+@keyframes alarmHop { from { transform: translate(-50%, 0); } to { transform: translate(-50%, -7px); } }
+
+/* 황금 양털(done) */
+.medal { display: none; position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: 18px; pointer-events: none; }
+.st-done .medal { display: block; animation: medalSway 2.4s ease-in-out infinite; }
+@keyframes medalSway { 50% { transform: translateX(-50%) translateY(-5px) rotate(8deg); } }
+.sheep.st-done::after {
+  content: '✦';
+  position: absolute;
+  top: -4px;
+  right: 4px;
+  color: #fff0b3;
+  font-size: 15px;
+  animation: twinkle 1.5s infinite;
+  pointer-events: none;
+}
+@keyframes twinkle { 0%, 100% { opacity: 0; transform: scale(.5) rotate(0); } 50% { opacity: 1; transform: scale(1.15) rotate(40deg); } }
+
+/* 정체불명(unknown) */
+.qmark { display: none; position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 17px; font-weight: 900; color: #5c5c66; pointer-events: none; }
+.st-unknown .qmark { display: block; animation: alarmHop 1.2s ease-in-out infinite alternate; }
+
+/* 이름표 */
+.nametag {
+  position: absolute;
+  left: 50%;
+  bottom: -17px;
+  transform: translateX(-50%);
+  padding: 0 8px;
+  background: rgba(255,255,255,.88);
+  border: 1px solid rgba(0,0,0,.14);
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--ink);
+  pointer-events: none;
+}
+.nametag .kind { font-weight: 500; opacity: .6; margin-left: 3px; }
+.sheep.focused .nametag { background: #2f6b3a; border-color: #1d4525; color: #fff; }
+
+/* 말풍선 */
+.bubble {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) scale(.5);
+  transform-origin: bottom center;
+  z-index: 60;
+  width: max-content;
+  max-width: 230px;
+  padding: 4px 11px;
+  background: #fff;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 3px 10px rgba(0,0,0,.22);
+  transition: opacity .22s, transform .22s;
+}
+.bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-top-color: #fff;
+}
+.bubble.show { opacity: 1; transform: translateX(-50%) scale(1); }
+.bubble.urgent { background: var(--alert); color: #fff; font-weight: 800; animation: bubbleShake .3s 3; }
+.bubble.urgent::after { border-top-color: var(--alert); }
+@keyframes bubbleShake { 25% { transform: translateX(-54%) scale(1); } 75% { transform: translateX(-46%) scale(1); } }
+
+/* ───────── 보더콜리 (포커스 추적) ───────── */
+.dog {
+  position: absolute;
+  width: 66px;
+  height: 52px;
+  z-index: 600;
+  pointer-events: none;
+  transition: left 1.3s ease-in-out, top 1.3s ease-in-out;
+}
+.dog svg { width: 100%; height: 100%; overflow: visible; }
+.dog.flip svg { transform: scaleX(-1); }
+.d-body, .d-head, .d-ear { fill: #2c2c34; }
+.d-chest, .d-blaze { fill: #f4f1ea; }
+.d-leg { fill: #26262d; }
+.d-eye { fill: #fff; }
+.d-tail {
+  fill: #2c2c34;
+  transform-box: fill-box;
+  transform-origin: 90% 60%;
+  animation: wag .4s ease-in-out infinite alternate;
+}
+@keyframes wag { from { transform: rotate(-14deg); } to { transform: rotate(18deg); } }
+.dog.running .d-leg { transform-box: fill-box; transform-origin: 50% 0; animation: legSwing .28s ease-in-out infinite alternate; }
+.dog.running .d-leg.l2, .dog.running .d-leg.l4 { animation-delay: .14s; }
+.dog.running .d-tail { animation-duration: .2s; }
+.dog-tag {
+  position: absolute;
+  left: 50%;
+  bottom: -14px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(44,44,52,.85);
+  border-radius: 8px;
+  padding: 0 7px;
+  white-space: nowrap;
+}
+
+/* ───────── 목장 일지 ───────── */
+#journal {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 800;
+  width: 330px;
+  max-width: calc(100vw - 28px);
+  max-height: 44vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(43,29,17,.9);
+  border: 2px solid var(--wood);
+  border-radius: 13px;
+  color: #f3e9d8;
+  backdrop-filter: blur(4px);
+  overflow: hidden;
+}
+#journal-toggle {
+  all: unset;
+  cursor: pointer;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  background: rgba(255,255,255,.06);
+}
+#journal-toggle .fold { float: right; transition: transform .25s; }
+#journal.collapsed #journal-toggle .fold { transform: rotate(-90deg); }
+#journal.collapsed ol { display: none; }
+#journal ol { margin: 0; padding: 2px 0 6px; list-style: none; overflow-y: auto; }
+#journal li {
+  padding: 3px 13px;
+  font-size: 12px;
+  line-height: 1.45;
+  border-top: 1px solid rgba(255,255,255,.07);
+  animation: slideIn .3s ease-out;
+}
+@keyframes slideIn { from { opacity: 0; transform: translateX(16px); } }
+#journal li .t { opacity: .5; font-size: 10.5px; margin-right: 6px; font-variant-numeric: tabular-nums; }
+#journal li.ev-blocked { color: #ff9d95; font-weight: 800; }
+#journal li.ev-done { color: var(--gold); }
+#journal li.ev-working { color: #b9eda9; }
+#journal li.ev-gone { color: #d9b38c; }
+
+/* ───────── 연출 파티클 ───────── */
+#fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 950; }
+.fx {
+  position: fixed;
+  width: 9px;
+  height: 9px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  animation: fxFly 1s ease-out forwards;
+  will-change: transform, opacity;
+}
+@keyframes fxFly {
+  from { transform: translate(0, 0) scale(1); opacity: 1; }
+  to { transform: translate(var(--dx), var(--dy)) scale(.25); opacity: 0; }
+}
+.fx-sparkle { background: transparent !important; width: auto; height: auto; font-size: 15px; line-height: 1; }
+.fx-ring {
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  background: transparent !important;
+  border: 3px solid var(--alert);
+  animation: fxRing .8s ease-out forwards;
+}
+@keyframes fxRing { to { transform: scale(5); opacity: 0; } }
+
+/* ───────── 연결 끊김 배너 ───────── */
+#offline-banner {
+  position: fixed;
+  top: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 920;
+  padding: 7px 18px;
+  background: rgba(40,40,48,.92);
+  color: #ffd7d4;
+  border: 1px solid var(--alert);
+  border-radius: 22px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  #journal { width: calc(100vw - 28px); max-height: 30vh; }
+  .chips { order: 3; width: 100%; }
+}

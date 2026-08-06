@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>양떼 초원 — herdr status</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐑</text></svg>">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header>
+    <a class="back" href="/">← 갤러리</a>
+    <h1>🐑 양떼 초원</h1>
+    <div class="chips">
+      <span class="chip st-working">🌿 풀 뜯는 중 <b id="c-working">0</b></span>
+      <span class="chip st-idle">💤 낮잠 <b id="c-idle">0</b></span>
+      <span class="chip st-blocked">🆘 구조 요청 <b id="c-blocked">0</b></span>
+      <span class="chip st-done">🏅 황금 양털 <b id="c-done">0</b></span>
+    </div>
+    <div class="conn"><span id="conn-emoji">⏳</span> <span id="conn-label">연결 중…</span></div>
+  </header>
+
+  <main id="meadow">
+    <div id="sky">
+      <div id="sun"></div>
+      <div class="cloud cloud-a"></div>
+      <div class="cloud cloud-b"></div>
+      <div id="storm"><span class="bolt">⚡</span></div>
+    </div>
+    <div id="pasture">
+      <div id="paddocks"></div>
+      <div id="empty-hint" hidden>🌾 목장이 텅 비었어요 — 양(에이전트)이 오길 기다리는 중…</div>
+    </div>
+  </main>
+
+  <aside id="journal">
+    <button id="journal-toggle" type="button">📜 목장 일지 <span class="fold">▾</span></button>
+    <ol id="journal-list"></ol>
+  </aside>
+
+  <div id="offline-banner" hidden>⛈️ 목장과 연락이 끊겼어요 — 마지막으로 본 풍경입니다</div>
+  <div id="fx-layer"></div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
