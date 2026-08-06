@@ -1,0 +1,70 @@
+<!doctype html>
+<!--
+  궤도 관제소 (Orbital Mission Control)
+  ─ 에이전트 = 궤도 탐사선, 워크스페이스 = 방위 섹터, 상태 = 궤도 반경.
+  ─ agent_status_changed = 궤도 전이(orbital transfer) 연출.
+  ─ blocked = DISTRESS 궤도 + 적색 마스터 알람(화면 비네트·배너·락온·사이렌).
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>궤도 관제소 — herdr status</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛰️</text></svg>">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="alert-vignette" aria-hidden="true"></div>
+
+  <header id="hud">
+    <a class="back" href="/">← 갤러리</a>
+    <div class="brand">
+      <span class="sat" aria-hidden="true">🛰️</span>
+      <b>ORBITAL MISSION CONTROL</b>
+      <small>herdr 관제 스코프</small>
+    </div>
+    <div class="hud-right">
+      <span class="ind" id="ind-link"><i></i>LINK</span>
+      <span class="ind" id="ind-uplink"><i></i><span id="uplink-label">UPLINK</span></span>
+      <span class="readout">MET <b id="met">T+00:00:00</b></span>
+      <span class="readout">SEQ <b id="seq">––</b></span>
+      <button id="audio-toggle" type="button" title="알람 사운드 켜기/끄기">🔇 ALARM</button>
+    </div>
+  </header>
+
+  <div id="banner" hidden></div>
+
+  <main>
+    <aside class="col left">
+      <section class="panel">
+        <h2>MASTER ALARM</h2>
+        <div id="alarm-list" class="alarm-list"></div>
+      </section>
+      <section class="panel grow">
+        <h2>CRAFT ROSTER <span class="hint">클릭 → 관제 시점 이동</span></h2>
+        <div id="roster" class="roster"></div>
+      </section>
+    </aside>
+
+    <section class="scope-wrap">
+      <canvas id="scope"></canvas>
+      <div id="tooltip" hidden></div>
+      <div id="toast" hidden></div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <aside class="col right">
+      <section class="panel">
+        <h2>STATUS BOARD</h2>
+        <div id="tiles" class="tiles"></div>
+      </section>
+      <section class="panel grow">
+        <h2>COMMS LOG <span class="hint">최신 위</span></h2>
+        <div id="comms" class="comms"></div>
+      </section>
+    </aside>
+  </main>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
