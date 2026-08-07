@@ -1,6 +1,0 @@
-{
-  "title": "3D 우리반 에이전트",
-  "description": "three.js 실사풍 3D 교실 — 교탁 앞 선생님 1인칭 시점. 학생(에이전트)들이 필기하고(working) 엎드리고(idle) 손 번쩍 들고(blocked) 다 풀면 양손 엄지척(done). 학생 클릭 = pane 점프.",
-  "emoji": "🎓",
-  "order": 30
-}
